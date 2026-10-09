@@ -78,6 +78,12 @@ Se você usa um gerenciador de referências (por exemplo, Zotero), ele mantém o
 
 Os dois primeiros pedidos podem ser usados a partir de outros projetos, por um agente externo, assim como as consultas (terceiro, quarto e sexto). Processamento e manutenção pertencem à sessão dedicada ao vault.
 
+## Integração com Claude Code
+
+- **Skill global `second-brain`** (`~/.claude/skills/second-brain/`): consulta e captura a partir de qualquer projeto. Fora do vault, só cria novas capturas em `00 Inbox/`. O vault está liberado para leitura em todas as sessões por `permissions.additionalDirectories` em `~/.claude/settings.json`, e um bloco curto em `~/.claude/CLAUDE.md` aponta para a skill.
+- **Skill de projeto `processar-inbox`** (`.claude/skills/` do vault): disponível somente em sessões iniciadas na raiz do vault, para o curador incorporar a Inbox (`/processar-inbox` ou "processe minha Inbox").
+- As skills são apenas portas de entrada: os protocolos em `99 System/AI/` continuam sendo a fonte da verdade. Os arquivos em `~/.claude/` ficam fora do repositório do vault.
+
 ## Bases e Git
 
 - Consultas recomendadas para o recurso Bases: [[99 System/Bases/README]].
