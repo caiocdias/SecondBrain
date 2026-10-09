@@ -1,0 +1,17 @@
+# Obsidian: estado de interface local (a configuração em .obsidian/ continua versionada)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.trash/
+
+# Claude Code: configuração local da máquina (.claude/skills/ e settings.json continuam versionados)
+.claude/settings.local.json
+
+# Temporários de publicação (ver 99 System/AI/ingestion.md) e de editores
+*.tmp
+*.swp
+*~
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
