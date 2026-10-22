@@ -31,6 +31,14 @@ Reduzir o esforço do usuário ao decidir pontos em aberto: o agente traz cada d
 4. No Claude Code, usar a ferramenta de perguntas interativas (AskUserQuestion), com a opção recomendada em primeiro lugar e o rótulo "(Recomendado)".
 5. Depois da entrevista, registrar as decisões onde o projeto as documenta.
 
+## Relação com o superpowers
+
+Em 2026-10-22, ao instalar o plugin superpowers, o usuário pediu para avaliar se ele era superior a esta metodologia e autorizou adaptá-la ou substituí-la. Conclusão do agente: o plugin não a substitui, porque trata de outro momento do trabalho. A divisão abaixo é interpretação do agente, ainda não confirmada pelo usuário.
+
+- **Descoberta** (`superpowers:brainstorming`): para entender o que o usuário quer, valem as perguntas abertas da skill, uma por mensagem. Esta metodologia não se aplica a essa fase, porque oferecer opções cedo direcionaria a resposta antes de o usuário descrever o que quer.
+- **Decisões**: esta metodologia se aplica aos pontos que o agente já entende e cuja decisão cabe ao usuário. No superpowers, isso inclui as perguntas que só o usuário pode responder na verificação do design (brainstorming), as escolhas de "como fazer" que o usuário quer tomar e as *rulings* registradas no ledger durante `subagent-driven-development` ou `executing-plans` que mudam contrato, escopo, segurança, dados ou algo caro de desfazer.
+- **Momento**: ao fim de uma execução ou de um lote, as decisões acumuladas viram uma única entrevista, em vez de ficarem só listadas no relatório. A skill `development-roadmap` aplica isso ao fim de cada lote de etapas.
+
 ## Critérios
 
 - Perguntas com poucas opções, claras e mutuamente distinguíveis.
@@ -52,6 +60,7 @@ Em aberto (não definido pelo usuário):
 ## Histórico de revisão
 
 - 2026-10-13 — criada como draft a partir de captura.
+- 2026-10-22 — acrescentada a seção "Relação com o superpowers", após avaliação autorizada pelo usuário; nenhuma regra declarada pelo usuário foi alterada.
 
 ## Proveniência
 

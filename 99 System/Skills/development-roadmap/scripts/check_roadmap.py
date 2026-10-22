@@ -27,23 +27,31 @@ REQUIRED_SECTIONS = {
     "Objetivo": ["objetivo", "objective", "goal"],
     "Critérios de aceite": ["critérios de aceite", "criterios de aceite", "acceptance criteria"],
     "Validação": ["validação", "validacao", "validation"],
-    "Estratégia de execução": ["estratégia de execução", "estrategia de execucao", "execution strategy"],
+    "Revisão humana": ["revisão humana", "revisao humana", "human review"],
     "Bloqueios": ["bloqueio", "blocker"],
     "Evidências e handoff": ["handoff", "evidências", "evidencias", "evidence"],
 }
+
+# Skills do superpowers que o prompt de execução precisa acionar.
+PROMPT_SKILLS = [
+    "superpowers:using-git-worktrees",
+    "superpowers:writing-plans",
+    "superpowers:subagent-driven-development",
+    "superpowers:finishing-a-development-branch",
+]
 
 PLACEHOLDER_PATTERNS = [
     (re.compile(r"\b(TODO|TBD|FIXME)\b"), "marcador de pendência"),
     (re.compile(r"\{\{[^}]*\}\}"), "placeholder {{...}}"),
     (re.compile(r"\[(preencher|a definir|inserir|fill in)[^\]]*\]", re.IGNORECASE), "placeholder [...]"),
-    # <algo-assim> precedido de espaço, início, '(' ou '/' (não genéricos como List<String>).
 ]
 # <algo-assim> precedido de espaço, início, '(' ou '/' (não genéricos como List<String>).
 # Só aviso: às vezes é um padrão legítimo ("db/migration/<módulo>").
 ANGLE_PLACEHOLDER = re.compile(r"(?:(?<=^)|(?<=[\s(/`'\"]))<[a-zà-ú][a-zà-ú0-9 _\-/.]*>", re.IGNORECASE)
-STRATEGY_LINE = re.compile(r"(estrat[ée]gia de execu[çc][ãa]o|execution strategy)", re.IGNORECASE)
-STRATEGIES = {"direta": "direta", "padrão": "padrão", "padrao": "padrão", "paralela": "paralela"}
-PROMPT_LABEL = re.compile(r"^\s*(\*\*|#{3,}\s).*prompt", re.IGNORECASE)
+HUMAN_REVIEW_LINE = re.compile(r"(revis[ãa]o humana|human review)", re.IGNORECASE)
+HUMAN_REVIEW_VALUE = re.compile(r"(revis[ãa]o humana|human review)\W*(sim|n[ãa]o|yes|no)\b", re.IGNORECASE)
+# Marcas do formato anterior (protocolo próprio, sem superpowers).
+LEGACY_MARKERS = re.compile(r"estrat[ée]gia de execu[çc][ãa]o|execu[çc][ãa]o autom[áa]tica|write-tree|prompt do verificador", re.IGNORECASE)
 HTML_TAGS = {"br", "b", "i", "em", "strong", "sub", "sup", "kbd", "code", "details", "summary", "p", "div", "span", "hr"}
 NO_BLOCKER = re.compile(r"nenhum bloqueio|sem bloqueio|no known blocker|no blockers?|none", re.IGNORECASE)
 
@@ -158,26 +166,6 @@ def check_tags(sid, tags, where, line, rep):
     return canon[0] if len(canon) == 1 else None
 
 
-def find_prompt(stage):
-    """Primeiro bloco de código depois de uma linha que mencione 'prompt'."""
-    seen_prompt = False
-    collecting = False
-    block = []
-    for _, line, in_code in stage["body"]:
-        if not seen_prompt:
-            if not in_code and PROMPT_LABEL.match(line):
-                seen_prompt = True
-            continue
-        if FENCE.match(line):
-            if collecting:
-                return "\n".join(block)
-            collecting = True
-            continue
-        if collecting:
-            block.append(line)
-    return "\n".join(block) if collecting else None
-
-
 def section_text(stage, keywords):
     """Texto da seção cujo rótulo contém uma das palavras-chave, até o próximo rótulo."""
     label = re.compile(r"^\s*(\*\*|###+\s*)([^*:]+)")
@@ -192,6 +180,29 @@ def section_text(stage, keywords):
         if inside:
             out.append(line)
     return "\n".join(out)
+
+
+def header_section(lines, heading_line):
+    """Linhas da seção '## ...' que começa em heading_line (1-based), até o próximo '## '."""
+    out = []
+    for line in lines[heading_line:]:
+        if line.startswith("## "):
+            break
+        out.append(line)
+    return out
+
+
+def first_code_block(section_lines):
+    block, inside = [], False
+    for line in section_lines:
+        if FENCE.match(line):
+            if inside:
+                return "\n".join(block)
+            inside = True
+            continue
+        if inside:
+            block.append(line)
+    return "\n".join(block) if inside else None
 
 
 def main():
@@ -244,7 +255,7 @@ def main():
     # Coerência de estados
     in_progress = [s for s, t in stage_tag.items() if t == "#em-andamento"]
     if len(in_progress) > 1:
-        rep.warn(1, f"mais de uma etapa #em-andamento ({', '.join(in_progress)}); só é válido com paralelismo declarado")
+        rep.warn(1, f"mais de uma etapa #em-andamento ({', '.join(in_progress)}); só é válido em branches separadas")
     for sid, tag in stage_tag.items():
         if tag in ("#concluida", "#em-andamento"):
             for d in graph.get(sid, []):
@@ -253,30 +264,43 @@ def main():
 
     roadmap_name = path.name
 
-    # Protocolo de execução e orquestrador (seções de cabeçalho, fora das etapas)
+    # Protocolo e prompt de execução (seções de cabeçalho, fora das etapas)
     headings = {i: l[3:].strip().lower() for i, l in enumerate(lines, 1) if l.startswith("## ")}
-    if not any("protocolo de execu" in h or "execution protocol" in h for h in headings.values()):
+    protocol = [i for i, h in headings.items() if "protocolo de execu" in h or "execution protocol" in h]
+    if not protocol:
         rep.error(1, "seção '## Protocolo de execução' ausente no cabeçalho")
-    orch = [i for i, h in headings.items() if "execução automática" in h or "execucao automatica" in h or "automatic execution" in h]
-    if not orch:
-        rep.error(1, "seção '## Execução automática' (prompt do orquestrador) ausente no cabeçalho")
     else:
-        block, inside = [], False
-        for line in lines[orch[0]:]:
-            if line.startswith("## "):
-                break
-            if FENCE.match(line):
-                if inside:
-                    break
-                inside = True
-                continue
-            if inside:
-                block.append(line)
-        text_o = "\n".join(block)
-        if not block:
-            rep.error(orch[0], "'Execução automática' sem prompt do orquestrador em bloco de código")
-        elif roadmap_name not in text_o:
-            rep.error(orch[0], f"o prompt do orquestrador não cita o arquivo do roadmap ({roadmap_name})")
+        body = "\n".join(header_section(lines, protocol[0])).lower()
+        if "superpowers" not in body:
+            rep.warn(protocol[0], "o protocolo de execução não menciona o superpowers")
+        if "roadmap/" not in body:
+            rep.warn(protocol[0], "o protocolo de execução não nomeia a branch roadmap/<slug>")
+        if "soul" not in body:
+            rep.warn(protocol[0], "o protocolo de execução não traz a tabela de papéis com a nota sobre Souls")
+    prompt_heads = [i for i, h in headings.items() if "prompt de execu" in h or "execution prompt" in h]
+    if not prompt_heads:
+        rep.error(1, "seção '## Prompt de execução' ausente no cabeçalho")
+    else:
+        prompt = first_code_block(header_section(lines, prompt_heads[0]))
+        if not prompt:
+            rep.error(prompt_heads[0], "'Prompt de execução' sem prompt em bloco de código")
+        else:
+            if roadmap_name not in prompt:
+                rep.error(prompt_heads[0], f"o prompt de execução não cita o arquivo do roadmap ({roadmap_name})")
+            for skill in PROMPT_SKILLS:
+                if skill not in prompt:
+                    rep.warn(prompt_heads[0], f"o prompt de execução não aciona {skill}")
+            low = prompt.lower()
+            if "limite" not in low and "limit" not in low:
+                rep.warn(prompt_heads[0], "o prompt de execução não define o limite de etapas por execução")
+            if "push" not in low:
+                rep.warn(prompt_heads[0], "o prompt de execução não proíbe push/merge sem decisão do usuário")
+
+    # Formato anterior (fora de blocos de código)
+    for i, (line, in_code) in enumerate(strip_fences(lines), 1):
+        if not in_code and LEGACY_MARKERS.search(line):
+            rep.warn(i, "marca do formato antigo do roadmap; migre conforme a skill (§6)")
+            break
 
     # Conteúdo de cada etapa
     for sid in stage_order:
@@ -285,41 +309,15 @@ def main():
         for name, keys in REQUIRED_SECTIONS.items():
             if not any(k in body_plain for k in keys):
                 rep.error(st["line"], f"{sid}: seção obrigatória ausente: {name}")
-        strategy = None
         for ln, line, in_code in st["body"]:
-            if not in_code and STRATEGY_LINE.search(line):
-                found = [STRATEGIES[w] for w in re.findall(r"[a-zãé]+", line.lower()) if w in STRATEGIES]
-                if len(set(found)) != 1:
-                    rep.error(ln, f"{sid}: 'Estratégia de execução' deve indicar exatamente uma entre direta, padrão, paralela")
-                else:
-                    strategy = found[0]
+            if not in_code and HUMAN_REVIEW_LINE.search(line):
+                if not HUMAN_REVIEW_VALUE.search(line.replace("*", "")):
+                    rep.error(ln, f"{sid}: 'Revisão humana' deve dizer sim ou não")
                 break
-        prompt = find_prompt(st)
-        if prompt is None:
-            rep.error(st["line"], f"{sid}: prompt em bloco de código não encontrado após o rótulo 'Prompt'")
-        else:
-            if roadmap_name not in prompt:
-                rep.error(st["line"], f"{sid}: o prompt não cita o arquivo do roadmap ({roadmap_name})")
-            if sid not in prompt:
-                rep.error(st["line"], f"{sid}: o prompt não cita o ID da etapa")
-            low = prompt.lower()
-            for needle, msg in [
-                ("#em-andamento", "não manda marcar #em-andamento ao iniciar"),
-                ("#concluida", "não menciona quando marcar #concluida"),
-                ("#bloqueada", "não diz o que fazer diante de bloqueio (#bloqueada)"),
-                ("handoff", "não manda preencher 'Evidências e handoff'"),
-                ("commit", "não diz nada sobre commit (deve proibir sem autorização)"),
-                ("protocolo", "não manda seguir o 'Protocolo de execução'"),
-                ("snapshot", "não manda tirar o snapshot inicial"),
-            ]:
-                if needle not in low:
-                    rep.warn(st["line"], f"{sid}: prompt {msg}")
-            if strategy and strategy not in low.replace("padrao", "padrão"):
-                rep.warn(st["line"], f"{sid}: prompt não nomeia a estratégia da etapa ({strategy})")
-            if strategy in ("padrão", "paralela") and "verifica" not in low:
-                rep.warn(st["line"], f"{sid}: estratégia {strategy} exige verificação independente, mas o prompt não a menciona")
-            if re.search(r"(etapa|step|stage) (acima|anterior|above|previous)\b|como combinamos|conforme conversamos", low):
-                rep.warn(st["line"], f"{sid}: prompt parece depender do contexto da conversa")
+        handoff = section_text(st, ["handoff", "evidências", "evidencias", "evidence"]).lower()
+        for needle in ("plano", "commits"):
+            if handoff and needle not in handoff:
+                rep.warn(st["line"], f"{sid}: 'Evidências e handoff' sem o campo '{needle}'")
         if stage_tag.get(sid) == "#bloqueada":
             blk = section_text(st, ["bloqueio", "blocker"])
             if not blk or NO_BLOCKER.search(blk):

@@ -1,72 +1,83 @@
 ---
 name: development-roadmap
-description: Cria ou atualiza um roadmap de desenvolvimento executável em Markdown, ancorado no código e na documentação reais do repositório, dividindo o trabalho em etapas com tags de estado (#pendente, #em-andamento, #concluida, #bloqueada), dependências, critérios de aceite, validação, estratégia de execução com subagentes (investigação, implementação paralela, verificação independente) e um prompt autocontido por etapa para colar numa sessão limpa do Claude Code, além de um prompt orquestrador que executa as etapas em sequência com um subagente por etapa. Use sempre que o usuário pedir roadmap, plano de implementação, plano de desenvolvimento, quebrar/dividir uma feature, spec ou sistema em etapas, fases ou sessões, gerar prompts para as próximas sessões, planejar execução com subagentes, ou atualizar/sincronizar o estado de um roadmap existente, mesmo que ele não diga "roadmap". Não use para roadmaps só de produto/negócio, listas de tarefas simples sem trabalho de código, ou para implementar as etapas.
+description: Cria ou atualiza um roadmap de desenvolvimento em Markdown, ancorado no código e na documentação reais do repositório, que divide um projeto ou fase em etapas com tags de estado (#pendente, #em-andamento, #concluida, #bloqueada), dependências, critérios de aceite, decisões em aberto e revisão humana. Cada etapa é planejada e executada pelo plugin superpowers (writing-plans e subagent-driven-development) numa branch do roadmap, um lote de etapas por vez, a partir de um único prompt de execução. Use sempre que o usuário pedir roadmap, plano de desenvolvimento em etapas ou fases, quebrar uma feature, spec ou sistema em várias sessões, ou atualizar/sincronizar o estado de um roadmap existente, mesmo sem dizer "roadmap". Para um trabalho que cabe num único plano, use direto superpowers:brainstorming e superpowers:writing-plans. Não use para roadmaps só de produto/negócio nem para implementar as etapas.
 ---
 
 # Development Roadmap
 
-Crie um roadmap que permita ao Claude Code executar **uma etapa por vez**, sem depender do histórico da conversa que gerou o plano — seja numa sessão limpa aberta pelo usuário, seja por um subagente disparado pelo orquestrador do próprio roadmap. Quem executar a etapa terá apenas o repositório e o prompt — tudo o que precisa saber tem de estar no arquivo ou ser descobrível no código.
+Um roadmap organiza um trabalho grande demais para um único plano em **etapas** executadas ao longo de várias sessões. Esta skill cuida da camada de cima: o que fazer, em que ordem, em que estado está cada etapa e o que depende do usuário. O plano detalhado e a execução de cada etapa ficam com o plugin **superpowers**:
 
-Este arquivo descreve o processo. A estrutura detalhada do documento, com exemplo de etapa e de prompt, está em `references/template.md`; leia-o antes de escrever o roadmap. Ao final, valide com `scripts/check_roadmap.py`.
+- `superpowers:brainstorming`: descobrir o que o usuário quer, quando o pedido não traz spec ou design suficiente;
+- `superpowers:writing-plans`: transformar uma etapa num plano de tarefas com arquivos, interfaces e testes exatos;
+- `superpowers:subagent-driven-development` (ou `executing-plans`, sem subagentes): executar o plano com revisão por tarefa e revisão final;
+- `superpowers:using-git-worktrees` e `superpowers:finishing-a-development-branch`: isolar o trabalho numa branch e decidir com o usuário como integrá-la.
+
+Se o superpowers não estiver instalado, avise o usuário (ele está registrado no Second Brain e é instalado pela configuração da máquina) e pare antes de escrever o roadmap.
+
+A estrutura do documento está em `references/template.md`; leia-o antes de escrever. Ao final, valide com `scripts/check_roadmap.py`.
 
 ## Limite da tarefa
 
-Produza ou atualize o arquivo de roadmap. Não implemente etapas, não faça commit e não altere outros arquivos, salvo pedido explícito do usuário. O valor do roadmap está em ser revisável antes de qualquer mudança de código.
+Produza ou atualize o arquivo de roadmap. Não planeje tarefas, não implemente, não faça commit e não altere outros arquivos, salvo pedido explícito do usuário. O valor do roadmap está em ser revisável antes de qualquer mudança de código.
 
 ## 1. Investigue o contexto antes de planejar
 
 Um roadmap só é útil se os caminhos, comandos e interfaces citados existirem de fato. Faça inspeções somente leitura suficientes para ancorar o plano:
 
-1. Identifique a raiz do projeto (ou subprojeto, num monorepo) e leia as instruções aplicáveis: `CLAUDE.md` na hierarquia relevante, `.claude/` e também `AGENTS.md`, se existir.
-2. Leia `README`, manifestos de build (`package.json`, `build.gradle.kts`, `pyproject.toml`, `Cargo.toml`…), configuração de CI, documentação de arquitetura/especificação e as áreas de código e testes relacionadas ao pedido.
-3. Rode `git status` e `git log --oneline -n 20` para conhecer o estado atual e preservar mudanças do usuário.
+1. Identifique a raiz do projeto (ou subprojeto, num monorepo) e leia as instruções aplicáveis: `CLAUDE.md` na hierarquia relevante, `.claude/` e `AGENTS.md`, se existir.
+2. Leia `README`, manifestos de build, configuração de CI, documentação de arquitetura/especificação (inclusive `docs/superpowers/specs/`) e as áreas de código e testes relacionadas ao pedido.
+3. Rode `git status`, `git branch -a` e `git log --oneline -n 20` para conhecer o estado atual, branches de roadmap existentes e mudanças do usuário.
 4. Registre apenas stack, comandos, caminhos, interfaces e restrições confirmados. Comandos de build/teste só valem se aparecem em manifesto, CI, README ou instruções do projeto.
 5. Separe **fatos confirmados**, **hipóteses** e **decisões em aberto**:
-   - **hipótese** — existe um padrão razoável e mudar de ideia depois é barato (nome de pacote "a confirmar", biblioteca auxiliar, ferramentas instaladas na máquina do usuário). Registre-a com impacto e siga; a etapa afetada confere e se bloqueia se a hipótese cair.
-   - **decisão em aberto** — sem ela a etapa não pode ser feita sem adivinhar, ou adivinhar errado é caro de desfazer (fornecedor externo, provedor de CI/infra, modelo de dados de contrato público, regra de segurança/LGPD). Registre-a e marque a primeira etapa afetada como `#bloqueada`.
-   - se a lacuna impedir o plano inteiro, pergunte ao usuário antes de escrever.
+   - **hipótese**: existe um padrão razoável e mudar de ideia depois é barato. Registre-a com impacto e siga; a etapa afetada confere e se bloqueia se a hipótese cair.
+   - **decisão em aberto**: sem ela a etapa não pode ser feita sem adivinhar, ou adivinhar errado é caro de desfazer (fornecedor externo, infraestrutura, contrato público, segurança/LGPD). Registre-a e marque a primeira etapa afetada como `#bloqueada`.
 
 Leia o necessário, não tudo: em especificações longas, use o índice e leia a fundo só as seções do escopo pedido.
 
+### Quando falta entender o pedido
+
+Se o pedido não diz o que construir com clareza suficiente para dividir em etapas, conduza antes `superpowers:brainstorming` até haver um design aprovado pelo usuário (o documento fica em `docs/superpowers/specs/`). Esse design é a fonte do roadmap: cite-o no cabeçalho. Para trabalho que cabe num único plano, não crie roadmap; siga o fluxo normal do superpowers.
+
+Decisões que cabem ao usuário (decisões em aberto que impedem o plano inteiro, duas leituras plausíveis do escopo) são resolvidas por **entrevista com opção recomendada**: perguntas de múltipla escolha, uma opção marcada como recomendada e justificada; no Claude Code, `AskUserQuestion` com a recomendada em primeiro lugar e o rótulo "(Recomendado)".
+
 ### Projeto sem código (greenfield)
 
-Quando o repositório ainda não tem código, não há comandos de validação para citar. Não os invente. Faça a primeira etapa estabelecer o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack (o snapshot do protocolo de execução depende dele) **e** os comandos oficiais de build, teste e lint, registrando-os em "Evidências e handoff" e no README/CLAUDE.md. Os prompts das etapas seguintes mandam ler esses comandos ali, em vez de repeti-los às cegas. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
+Não invente comandos de validação. A primeira etapa estabelece o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack e os comandos oficiais de build, teste e lint, registrando-os em "Evidências e handoff" e no README/CLAUDE.md. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
 
 ## 2. Dimensione o escopo
 
-Um roadmap com dezenas de etapas raramente é executado até o fim: o código diverge do plano antes. Se o pedido cobrir um sistema inteiro ou várias fases (por exemplo, uma especificação com "Fase 1, 2, 3"), prefira um roadmap por fase ou marco:
+Um roadmap com dezenas de etapas raramente é executado até o fim: o código diverge do plano antes. Se o pedido cobrir um sistema inteiro ou várias fases, prefira um roadmap por fase ou marco:
 
 - se o usuário indicou uma fase/escopo, planeje só ele e liste o restante em "Fora de escopo";
-- se não indicou, planeje a primeira fase entregável e cite no cabeçalho os roadmaps futuros sugeridos;
-- pergunte apenas se houver duas leituras igualmente plausíveis que mudem muito o resultado.
+- se não indicou, planeje a primeira fase entregável e cite no cabeçalho os roadmaps futuros sugeridos.
 
-Como referência, mais de ~15 etapas costuma indicar escopo grande demais para um único arquivo. Se a fase que o usuário pediu realmente precisa de mais, mantenha um arquivo, agrupe as etapas em blocos no índice (ex.: "Plataforma", "Acesso", "Domínio") e ofereça a divisão em dois arquivos na resposta final — não divida sem perguntar, porque o usuário pediu aquela fase.
+Como referência, mais de ~12 etapas costuma indicar escopo grande demais para um único arquivo. Se a fase pedida realmente precisa de mais, agrupe as etapas em blocos no índice e ofereça a divisão em dois arquivos na resposta final, sem dividir por conta própria.
 
 ## 3. Escolha o arquivo de destino
 
-Use o caminho indicado pelo usuário. Sem indicação, decida depois de inspecionar o repositório:
+Use o caminho indicado pelo usuário. Sem indicação:
 
-1. Procure roadmaps existentes (`find . -iname '*roadmap*' -not -path '*/node_modules/*'`) e compare título, objetivo e escopo. Se já houver um para o mesmo escopo, **atualize-o** (veja §6).
-2. Senão, siga a convenção existente de roadmaps/planos no projeto ou subprojeto (nome, capitalização, diretório).
-3. Sem convenção, use a pasta de documentação mais próxima do código afetado (`docs/roadmaps/`, depois `docs/`, `documentation/` ou equivalente). Num monorepo, não use a pasta `docs` de outro componente.
-4. Sem pasta de documentação, use a raiz do projeto ou subprojeto. Não crie hierarquia nova só para o arquivo.
+1. Procure roadmaps existentes (`find . -iname '*roadmap*' -not -path '*/node_modules/*'`). Se já houver um para o mesmo escopo, **atualize-o** (§6).
+2. Senão, siga a convenção existente de roadmaps/planos no projeto ou subprojeto.
+3. Sem convenção, use `docs/roadmaps/` se existir, depois a pasta de documentação mais próxima do código afetado; num monorepo, não use a pasta `docs` de outro componente. Sem pasta de documentação, use a raiz do projeto ou subprojeto.
 
-Nome: descritivo e estável, `roadmap-<slug-do-escopo>.md` (ex.: `docs/roadmap-autenticacao-oauth.md`, `roadmap-fase-1-hospedagem.md`). Evite o genérico `ROADMAP.md`, salvo pedido ou convenção. Nunca sobrescreva roadmap de outro escopo; em colisão, torne o slug mais específico.
+Nome: `roadmap-<slug-do-escopo>.md` (ex.: `docs/roadmap-autenticacao-oauth.md`). O mesmo slug nomeia a branch de execução, `roadmap/<slug>`. Nunca sobrescreva roadmap de outro escopo; em colisão, torne o slug mais específico.
 
-## 4. Decomponha o trabalho
+## 4. Decomponha o trabalho em etapas
 
-Crie quantas etapas o contexto exigir. Cada etapa deve:
+Cada etapa vira **um plano do superpowers**. Ela deve:
 
-- caber numa sessão do Claude Code e entregar um resultado observável — se o prompt precisar de dois objetivos independentes, são duas etapas;
-- ter objetivo único e limites claros;
-- declarar dependências por ID e o que pode correr em paralelo (e quais arquivos geram conflito de edição). Etapas paralelas só rodam ao mesmo tempo em worktrees git separados, cada uma em sua sessão; na mesma árvore de trabalho, o diff medido pelo verificador misturaria as duas e reprovaria ambas;
-- seguir a ordem das dependências técnicas e reduzir risco cedo (integrações externas incertas, migrações, contratos públicos);
-- trazer testes e documentação junto da mudança que os exige, não numa etapa genérica "testes" no fim;
+- ter objetivo único e entregar um resultado observável, do tamanho de um plano de poucas tarefas que roda numa sessão; se precisar de dois objetivos independentes, são duas etapas;
+- descrever **o quê**, não o como: objetivo, escopo, fora de escopo, critérios de aceite binários e validação. Arquivos, assinaturas e passos ficam para o `writing-plans`, que lê o código no momento da execução; um roadmap que fixa esses detalhes envelhece antes de ser executado. "Notas para o plano" guarda só o que o planejador não descobriria sozinho (uma armadilha conhecida, uma convenção vinda de outra etapa);
+- declarar dependências por ID e seguir a ordem das dependências técnicas, reduzindo risco cedo (integrações externas incertas, migrações, contratos públicos);
+- trazer testes e documentação junto da mudança que os exige;
 - terminar num estado integrável, com build e testes verdes.
 
-Inclua etapa de descoberta técnica (spike) só quando uma incógnita real impedir implementação responsável — e, nesse caso, a entrega dela é uma decisão registrada, não código de produção. Evite a sequência genérica análise → código → testes → documentação.
+As etapas de um lote rodam em sequência na mesma branch, então paralelismo entre etapas é só informativo ("independente de E03"): para rodar duas ao mesmo tempo, o usuário usa branches separadas.
 
-A última etapa (ou um gate final) valida a integração e a definição global de pronto.
+Inclua etapa de descoberta (spike) só quando uma incógnita real impedir planejar responsavelmente; a entrega dela é uma decisão registrada, não código de produção. A última etapa (ou um gate final) valida a integração e a definição global de pronto.
+
+Marque **Revisão humana: sim** nas etapas cujo erro se propagaria ou custaria caro: as que estabelecem convenções ou contratos que muitas etapas seguintes vão repetir, autenticação/autorização, migrações destrutivas e a primeira integração com cada sistema externo. A execução para depois delas; mantenha-as como minoria.
 
 ## 5. Tags de estado
 
@@ -75,112 +86,60 @@ Cada etapa exibe exatamente uma destas tags, idêntica no índice e no título d
 | Tag | Significado |
 |---|---|
 | `#pendente` | ainda não iniciada |
-| `#em-andamento` | trabalho ativo, com evidência registrada |
-| `#concluida` | todos os critérios de aceite e validações obrigatórias passaram, com evidência |
+| `#em-andamento` | plano criado ou execução em curso, com evidência registrada |
+| `#concluida` | revisão final limpa e todos os critérios de aceite verificados, com evidência |
 | `#bloqueada` | impedimento real impede iniciar ou aceitar a etapa |
 
 Regras, e o motivo delas:
 
-- Roadmap novo começa `#pendente`, exceto quando o repositório prova trabalho já feito, ou quando uma decisão em aberto (§1) já impede a etapa — essa nasce `#bloqueada`. O estado deve refletir a realidade, não intenções.
-- Dependência não concluída mantém a etapa `#pendente`; isso não é bloqueio. Bloqueio é algo que exige ação de fora da sequência (decisão do usuário, credencial, contrato com fornecedor, bug externo).
-- No máximo uma etapa `#em-andamento`, exceto paralelismo declarado sem conflito.
-- `#concluida` exige evidência para cada critério e resultado dos comandos obrigatórios. Validação não executada impede conclusão.
-- `#bloqueada` exige causa, evidência, impacto e ação concreta de desbloqueio — terminando com "registrar a decisão em Dn e trocar a tag para `#pendente`", para que a etapa volte ao fluxo normal. Riscos hipotéticos ficam em "Riscos" e não mudam o estado.
+- Roadmap novo começa `#pendente`, exceto quando o repositório prova trabalho já feito, ou quando uma decisão em aberto já impede a etapa, que nasce `#bloqueada`. O estado deve refletir a realidade, não intenções.
+- Dependência não concluída mantém a etapa `#pendente`; isso não é bloqueio. Bloqueio exige ação de fora da sequência (decisão do usuário, credencial, contrato com fornecedor, bug externo).
+- No máximo uma etapa `#em-andamento` por branch.
+- `#bloqueada` exige causa, evidência, impacto e ação concreta de desbloqueio, terminando com "registrar a decisão em Dn e trocar a tag para `#pendente`". Riscos hipotéticos ficam em "Riscos" e não mudam o estado.
 
 ## 6. Atualizando um roadmap existente
 
-Quando o pedido for atualizar, sincronizar ou ampliar um roadmap:
+- Preserve estados, evidências e handoffs já registrados. Só mude uma tag com evidência verificável (arquivos, `git log` da branch do roadmap, testes executados agora); diga no handoff o que verificou.
+- Não renumere etapas. Etapas novas recebem o próximo ID livre e entram na posição correta de dependência.
+- Etapa cancelada ou substituída sai do índice e do corpo e é registrada no "Histórico de revisões" com o motivo; seu ID nunca é reutilizado. Etapas `#concluida` nunca são removidas.
+- Se o código divergiu do plano, ajuste escopo e critérios das etapas pendentes afetadas.
+- Mantenha um breve "Histórico de revisões" no fim do arquivo.
+- **Roadmap no formato antigo** (com "Estratégia de execução", prompt por etapa, snapshot por `git write-tree` ou orquestrador próprio): migre para este formato. Troque o cabeçalho de execução pelo do template, remova estratégias e prompts das etapas não concluídas, preserve as evidências das concluídas e registre a migração no histórico.
 
-- Preserve estados, evidências e handoffs já registrados. Só mude uma tag com evidência verificável no repositório (arquivos, `git log`, testes executados agora); diga no handoff o que verificou.
-- Não renumere etapas. Etapas novas recebem o próximo ID livre e entram na posição correta de dependência no documento, mesmo que o número fique fora de ordem.
-- Etapa cancelada ou substituída sai do índice e do corpo, mas é registrada no "Histórico de revisões" com o motivo e a etapa substituta. Seu ID nunca é reutilizado, para que referências antigas não apontem para outra coisa. Etapas `#concluida` nunca são removidas.
-- Se o código divergiu do plano, ajuste escopo, prompts e critérios das etapas pendentes afetadas.
-- Mantenha um breve "Histórico de revisões" no fim do arquivo com data e o que mudou.
-- Se o roadmap for anterior ao protocolo de execução (sem "Protocolo de execução", "Execução automática" ou "Estratégia de execução"), acrescente-os às etapas não concluídas.
+## 7. Execução
 
-## 7. Execução com subagentes
+O roadmap traz no cabeçalho a seção **"Protocolo de execução"** e a seção **"Prompt de execução"** (textos prontos no template; adapte caminho e slug). O protocolo mora no roadmap, e não só nesta skill, porque a sessão que executa não carrega esta skill: ela só tem o arquivo e o superpowers.
 
-O roadmap inclui uma seção **"Protocolo de execução"** no cabeçalho (texto pronto em `references/template.md`, adapte só o caminho do roadmap) e, em cada etapa, um campo **"Estratégia de execução"**. O protocolo mora no roadmap, e não só nesta skill, porque a sessão que executa a etapa não carrega esta skill: ela só tem o arquivo.
+Decisões de desenho que o template incorpora (mantenha-as ao adaptar):
 
-O protocolo usa subagentes onde eles ajudam e os evita onde atrapalham:
+- **Branch do roadmap**: toda execução acontece no worktree/branch `roadmap/<slug>`, criado com `superpowers:using-git-worktrees` e nunca na branch principal. Um lote ainda não integrado é continuado na mesma branch; depois de integrado, o próximo lote parte da branch principal atualizada. O próprio roadmap é atualizado na branch, então integrar a branch integra também os estados.
+- **Uma etapa, um plano**: a seção da etapa (mais o design citado no cabeçalho) é a spec do `writing-plans`; o plano fica em `docs/superpowers/plans/` e é executado com `subagent-driven-development`. O superpowers commita por tarefa na branch.
+- **Integração só no fim do lote**: `finishing-a-development-branch` roda uma vez, ao fim do lote, e é o usuário quem decide merge, PR, manter ou descartar. Nada de push, merge ou deploy sem ele.
+- **Decisões do usuário**: o superpowers decide ambiguidades sozinho e registra *rulings* no ledger. As que mudam contrato, escopo, segurança, dados ou algo caro de desfazer vão para "Decisões para o usuário" no handoff e, ao parar, são apresentadas como entrevista com opção recomendada.
+- **Lote limitado**: para numa etapa com Revisão humana: sim (depois de concluí-la), numa etapa `#bloqueada` ou em divergência do plano, nas paradas do próprio superpowers (operação destrutiva, ação sensível de segurança, efeito fora da branch, plano sem caminho viável) e ao atingir o **limite de etapas por execução** (padrão 3, editável no prompt). Lotes pequenos mantêm o diff revisável.
+- **Papéis e Souls**: o protocolo nomeia os papéis (orquestrador, planejador, implementador, revisor de tarefa, revisor final) e o que cada um usa no superpowers. Cada papel poderá receber no futuro uma *soul* personalizada; enquanto não houver uma definida, valem os prompts padrão do superpowers. Não invente souls.
 
-- **Investigação delegada** (`Explore`, somente leitura): material extenso que será lido mas não editado — seções longas de especificação, convenções de outro módulo — é resumido por um subagente, preservando o contexto da sessão principal para a implementação. Os arquivos que serão editados são lidos pela própria sessão principal; editar a partir de um resumo produz erros.
-- **Implementação na sessão principal**: uma única mente edita o código e o roadmap. Vários agentes editando os mesmos arquivos geram conflitos e decisões incoerentes.
-- **Implementação paralela** (`general-purpose`), só quando a etapa tem partes substanciais com conjuntos de arquivos disjuntos, listados na etapa. Arquivos compartilhados (build, configuração, o roadmap) ficam com a sessão principal, que integra e roda a validação completa.
-- **Verificação independente** (`general-purpose` novo): quem implementou tende a confirmar o próprio trabalho. Um subagente que não viu a implementação confere o diff da etapa contra os critérios de aceite, roda as validações e devolve APROVADO/REPROVADO com evidência. O diff da etapa é medido a partir de um snapshot da árvore de trabalho tirado no início (via `git write-tree` com índice temporário — sem commit e sem mexer no índice do usuário), porque o usuário pode não commitar entre etapas.
+## 8. Antes de entregar
 
-Escolha a estratégia de cada etapa:
-
-| Estratégia | Quando usar |
-|---|---|
-| `direta` | mudança localizada e de baixo risco (configuração, documentação, ajuste coberto por testes existentes). Sem subagentes; a própria sessão valida. |
-| `padrão` | o caso comum: etapa que cria ou muda comportamento. Investigação quando houver material extenso a ler + verificação independente obrigatória. |
-| `paralela` | `padrão` + partes paralelas. Só quando há ≥2 partes substanciais com arquivos disjuntos que entregam juntas um resultado. Se as partes entregam resultados independentes, são etapas separadas, não uma etapa paralela. |
-
-No campo, seja concreto: as perguntas que a investigação deve responder (não "explore o código"), as partes paralelas com seus arquivos e o **foco do verificador** — os riscos específicos da etapa que ele deve atacar (ex.: "escrita sem permissão", "migração reversível").
-
-Marque também **Revisão humana: sim** nas etapas cujo erro se propagaria ou custaria caro: as que estabelecem convenções ou contratos que muitas etapas seguintes vão repetir (esqueleto, convenções de API, protocolos entre cliente e servidor), autenticação/autorização, migrações destrutivas de dados e a primeira integração com cada sistema externo. Uma etapa que só acrescenta endpoints seguindo convenções já revisadas não precisa. O orquestrador pausa nelas, então mantenha-as como minoria (cerca de uma em cada quatro, no máximo).
-
-## 8. Prompts autocontidos
-
-Cada etapa tem um bloco de código com um prompt que pode ser colado **sem edição** numa nova sessão do Claude Code aberta na raiz do projeto — e que o orquestrador repassa literalmente a um subagente. "Autocontido" significa independente **desta conversa** — quem executa não a viu, então "como combinamos" ou "a etapa acima" é informação perdida. O roadmap, porém, estará no disco: o prompt manda lê-lo e não precisa copiar o corpo inteiro da etapa. Copiar tudo duplica cada etapa e faz o arquivo crescer até ninguém revisá-lo.
-
-O prompt deve:
-
-- citar o caminho exato do arquivo de roadmap e o ID/título da etapa;
-- dizer em 1–3 frases o objetivo concreto e repetir só os limites cuja violação seria cara (o que não tocar) e os critérios de aceite em forma resumida — é o que a sessão usa para decidir se terminou;
-- mandar seguir o "Protocolo de execução" do roadmap com a estratégia da etapa, nomeando-a e citando o que for específico dela (perguntas da investigação, partes paralelas, foco do verificador);
-- mandar ler antes de tudo: `CLAUDE.md`/`AGENTS.md`, o roadmap (cabeçalho, protocolo, a seção completa da etapa e handoffs das dependências), os arquivos relevantes e o `git status`;
-- mandar verificar se as dependências estão de fato `#concluida` e se o código não divergiu do plano — e, se divergiu, parar e relatar antes de improvisar;
-- mandar preservar mudanças preexistentes e não tocar fora do escopo;
-- mandar tirar o snapshot inicial e trocar a tag para `#em-andamento` ao começar (no índice e no título);
-- mandar implementar (testes primeiro quando os critérios descrevem comportamento verificável), criar/atualizar testes e rodar as validações da etapa;
-- proibir declarar sucesso com validação obrigatória falhando ou não executada;
-- mandar marcar `#concluida` só após o aceite — e, nas estratégias `padrão`/`paralela`, só com parecer APROVADO do verificador; diante de impedimento real, `#bloqueada` com causa, evidência e ação de desbloqueio;
-- mandar preencher "Evidências e handoff" (snapshot, arquivos alterados, decisões, comandos e resultados, parecer do verificador, observações para a próxima etapa);
-- pedir um resumo final curto de mudanças, validações e pendências;
-- não autorizar commit, push, deploy ou outra ação externa — essas ficam a critério do usuário.
-
-Sem placeholders (`<...>`, `TODO`, `TBD`) nos prompts. Use caminhos relativos ao repositório. Um bom prompt cabe em ~20–30 linhas.
-
-## 9. Execução automática (orquestrador)
-
-Inclua no cabeçalho a seção **"Execução automática"** com o prompt orquestrador do template, adaptado ao caminho do roadmap. Ele permite ao usuário colar um único prompt e ter as etapas executadas em sequência, cada uma por um subagente com contexto limpo — o mesmo isolamento de "uma sessão por etapa", sem colar prompt por prompt.
-
-Decisões de desenho que o template já incorpora (mantenha-as ao adaptar):
-
-- o orquestrador **coordena e não implementa**: lê o roadmap e os relatórios, não o código, para que seu contexto aguente várias etapas;
-- o subagente implementador recebe o prompt da etapa **literalmente**, mais um adendo que prevalece sobre ele: usa o snapshot já tirado pelo orquestrador, não dispara subagentes (faz a investigação ele mesmo e implementa em sequência as partes de uma etapa `paralela` — subagentes podem não conseguir criar outros) e não marca `#concluida`; quem dispara o verificador e fecha a etapa é o orquestrador;
-- no modo automático **toda** etapa passa pelo verificador, inclusive as `direta`: não há humano olhando entre etapas, e uma verificação de etapa pequena é barata;
-- correções após reprovação voltam ao mesmo implementador quando for possível retomá-lo; senão, um implementador novo recebe o parecer do verificador, o handoff e o snapshot;
-- etapas `#bloqueada` são puladas (e as que dependem delas esperam) e aparecem no relatório de parada;
-- etapas rodam **em sequência**, nunca em paralelo, porque compartilham a mesma árvore de trabalho sem commits;
-- para numa etapa `#bloqueada`, numa divergência do plano, após duas reprovações do verificador, numa etapa com **Revisão humana: sim** e ao atingir o **limite de etapas por execução** (padrão 3, editável no prompt). Lotes pequenos mantêm o diff revisável e dão ao usuário a chance de commitar entre lotes;
-- nunca faz commit, push ou deploy.
-
-Execução sem supervisão para em cada pedido de permissão (build, testes, Docker). Na resposta final, lembre o usuário de liberar antes os comandos de build/teste do projeto nas permissões do Claude Code (ou usar um modo de permissão mais autônomo), se quiser que o lote rode sem interrupções.
-
-## 10. Antes de entregar
-
-Rode o verificador estrutural e corrija tudo o que ele apontar como erro:
+Rode o verificador estrutural e corrija tudo o que ele apontar como erro (no Windows, `python` no lugar de `python3`):
 
 ```bash
 python3 ~/.claude/skills/development-roadmap/scripts/check_roadmap.py <caminho-do-roadmap>
 ```
 
-Ele confere tags canônicas, sincronia índice ↔ etapas, IDs duplicados, dependências inexistentes ou posteriores (o que também exclui ciclos), prompts sem o caminho do roadmap ou o ID, seções obrigatórias, estratégia de execução, presença do protocolo e do orquestrador, e placeholders. Avisos merecem leitura, mas podem ser legítimos.
+Ele confere tags canônicas, sincronia índice ↔ etapas, IDs duplicados, dependências inexistentes ou posteriores (o que também exclui ciclos), seções obrigatórias, Revisão humana em cada etapa, protocolo e prompt de execução, formato antigo e placeholders. Avisos merecem leitura, mas podem ser legítimos.
 
 Depois, revise o que o script não vê:
 
 - toda parte do pedido está no escopo de alguma etapa ou explicitamente fora de escopo;
 - critérios de aceite são binários e observáveis ("`GET /v1/rooms` retorna 200 com a lista paginada", não "funciona corretamente");
 - validações correspondem ao stack real e cobrem regressão proporcional ao risco;
+- nenhuma etapa fixa arquivos, assinaturas ou passos que o planejador deveria decidir lendo o código;
 - bloqueios são acionáveis e não confundem dependência normal com impedimento;
-- dependências entre módulos/camadas planejadas respeitam a arquitetura documentada (uma etapa que obriga o módulo A a chamar o B, quando a arquitetura proíbe, vai parar a sessão que a executar);
-- cada estratégia é proporcional à etapa: `paralela` só com partes de arquivos realmente disjuntos; `direta` só onde um erro seria barato e visível;
-- o gate final depende das etapas-folha (as que nenhuma outra etapa tem como dependência), o que cobre transitivamente todas as demais;
+- dependências respeitam a arquitetura documentada;
+- o gate final depende das etapas-folha;
 - nenhum fato inventado: cada caminho/comando citado foi visto no repositório ou está rotulado como hipótese/"a criar".
 
 ## Resposta final
 
-Informe o caminho do roadmap criado ou atualizado, a quantidade de etapas, um resumo de uma linha por etapa (ou por grupo), as decisões em aberto que o usuário precisa resolver e as duas formas de executar: colar o prompt de uma etapa numa sessão limpa, ou colar o prompt da seção "Execução automática" para rodar etapas em lote. Não cole o documento inteiro na resposta — o arquivo já está no repositório.
+Informe o caminho do roadmap, a quantidade de etapas, um resumo de uma linha por etapa (ou por grupo), as decisões em aberto (em forma de entrevista com opção recomendada, se puderem ser resolvidas agora) e como executar: colar o "Prompt de execução" numa sessão limpa na raiz do repositório, que roda até o limite de etapas na branch `roadmap/<slug>`. Lembre de liberar antes os comandos de build/teste do projeto nas permissões do Claude Code, se quiser que o lote rode sem interrupções. Não cole o documento inteiro na resposta.
