@@ -1,0 +1,57 @@
+---
+type: capture
+status: archived
+created: 2026-10-22
+capture_id: 4e9ffb74-b604-4a12-835d-89cb104e68f7
+---
+# ZenyHotelManager - Eventos e jobs
+
+## Conteúdo capturado
+
+Texto **literal** do `CLAUDE.md` do repositório ZenyHotelManager, linhas 564–577, no commit `a6c0f03` (2026-10-22): outbox, listeners de produção, jobs com ShedLock e o ciclo de uma publicação. Foi escrito pelos agentes que executaram as etapas do roadmap (M0 E01 a M5 E03); as decisões do usuário aparecem no próprio texto com a data e a indicação "decisão do usuário" (ou "decidida pela opção recomendada em nome do usuário (delegado ao orquestrador)"). Nada foi resumido nem reescrito.
+
+---
+
+**Eventos e jobs** (ARCHITECTURE §5 e §13):
+
+- Eventos publicados dentro da transação do caso de uso são gravados em `shared.event_publication` no mesmo commit. Listeners `@ApplicationModuleListener` rodam depois, assíncronos e em transação própria; se falharem, a publicação fica `FAILED`. O primeiro de produção é o `ChecklistRoutineListener` (`checklists`, M2 E07), idempotente pela geração por rotina e data; o segundo, o `PushDispatchListener` (`notifications`, M2 E09), idempotente pelo registro dos envios (`notifications.push_delivery`), que lança `PushDeliveryPostponed` na falha temporária do FCM para o outbox reenviar e trata dentro dele o que não deve ser reenviado (token inválido, sessão encerrada); o terceiro, o `PaymentSucceededListener` (`billing`, M3 E08), idempotente pela intenção (`billing.payment_intent_uk`): ignora a intenção cujo pagamento já está na conta e falha (publicação `FAILED`, visível no alerta de abandono) com uma intenção da conta sem pagamento, que só os provedores assíncronos do M7 criarão. O quarto e o quinto, os `InventoryListeners` (`reservations`, M4 E05) de `RoomRegistryChanged` e `OutOfOrderChanged`, idempotentes porque refazem os contadores a partir da `RoomsApi` (nunca somam deltas). O sexto, o `GuestsMergedListener` (`reservations`, M4 E07), idempotente porque reponta só o que ainda aponta para o absorvido. O sétimo, o `ReallocationListener` (`reservations`, M4 E10) de `OutOfOrderChanged`, idempotente porque refaz a marca "requer realocação" a partir da `RoomsApi` e só notifica a alocação marcada agora.
+- Jobs do `shared`: `EventPublicationResubmissionJob` (`events-resubmit-failed`), `CompletedEventPublicationPurgeJob` (`events-purge-completed`, a cada hora; apaga as publicações concluídas há mais de `zeny.events.completed-retention`, 7 dias), `IdempotencyKeyPurgeJob` (`idempotency-keys-purge`) e `OfflineCommandPurgeJob` (`offline-commands-purge`, a cada hora; esvazia os resultados de comandos offline cuja retenção de 30 dias, contada de `retain_from`, venceu, e apaga os ids depois de 365 dias). Do `iam`: `RotatedRefreshTokenPurgeJob` (`iam-rotated-refresh-tokens-purge`, a cada 6h), que apaga os refresh tokens trocados há mais de 30 dias. Do `files`: `FileOrphanPurgeJob` (`files-orphans-purge`, a cada hora), que apaga os anexos órfãos há mais de 24 h, cada um auditado (`files.file.purge-orphan`). Do `guests`: `GuestDocumentRekeyJob` (`guests-documents-rekey`, a cada `zeny.guests.document-rekey.interval`, 1 h, depois de 10 min do boot), que re-cifra o número e recalcula o índice cego dos documentos gravados com uma chave que não é a ativa, um por transação com a linha travada, em lotes de 100 (até 10 por execução); escrita técnica, fora da trilha (o valor não muda, só a chave que o protege), com o falho só no log pelo id. Do `reservations`: `InventoryHorizonJob` (`reservations-inventory-horizon`, diário, depois de 2 min do boot), que cria as datas que faltam no horizonte de 730 dias de cada tipo de UH ativo e refaz o total e o OOO, um tipo por transação, auditado com ator sistema (`reservations.inventory.extend-horizon`), e, desde a E09, `ProvisionalExpiryJob` (`reservations-provisional-expiry`, a cada 5 min, depois de 1 min do boot), que cancela as pré-reservas vencidas sem multa, uma por transação, auditado com ator sistema (`reservations.reservation.expire`). Um método com `@SchedulerLock` não pode devolver tipo primitivo (o ShedLock recusa na chamada). Os expurgos de dados transitórios não vão para a trilha de auditoria (são escritas técnicas, em `infrastructure`).
+- **Ciclo de uma publicação** (H13 do roadmap do M2, M2 E12; `shared/infrastructure/events/`, regra em `OutboxRetryPolicy`):
+  - **Reenvio com backoff:** o `EventPublicationResubmissionJob` roda a cada minuto e reenvia só as `FAILED` cuja próxima tentativa venceu: depois de `n` reenvios (`completion_attempts` − 1; a entrega original grava 1), a espera é `zeny.events.resubmission.initial-backoff` × 2ⁿ até `max-backoff` (1, 2, 4, 8, 16, 32 min e depois 1 h), contada de `last_resubmission_date` (que o Modulith cria com a data da publicação e atualiza a cada reenvio), pelo `Clock` da aplicação, o mesmo que grava as datas. No máximo `batch-size` (100) reenvios por execução. A leitura das `FAILED` não tem `LIMIT` (o Modulith limita antes de filtrar, e as abandonadas esconderiam as vencidas); o evento só é desserializado se for reenviado.
+  - **Abandono:** a `FAILED` cujo `last_resubmission_date` é `give-up-after` (24 h) ou mais depois da `publication_date` falhou numa tentativa já depois do prazo e está **abandonada** (com os padrões, no 29º reenvio, 24 h 3 min depois da publicação). Ela continua `FAILED` na tabela, nunca é apagada, sai do reenvio automático, conta como `state="abandoned"` no `OutboxMetrics` e dispara o alerta `ZenyOutboxAbandonedPublications` (com `for: 5m`, para não alarmar durante a última tentativa ainda em execução, que já conta como abandonada). A regra só olha as datas da linha, não o relógio, e nenhum caminho automático a desfaz: o staleness só passa paradas a `FAILED` e `republish-outstanding-events-on-restart` está **desligado**, porque reenviaria no boot todas as incompletas, sem filtro, inclusive as abandonadas. No boot, então, nada é reenviado de imediato: as `FAILED` voltam pelo job (primeira execução 1 min depois do boot) e as que o processo anterior deixou em andamento, pelo staleness (paradas há mais de 10 min viram `FAILED`, `spring.modulith.events.staleness.*`). O prazo conta da publicação: com a aplicação fora do ar, o tempo parado também conta, mas sempre há ao menos uma tentativa depois do prazo.
+  - **Reenvio manual** (sem endpoint), depois de corrigir a causa: como o dono ou o papel da aplicação (no compose, `docker compose -f docker/compose.yaml exec db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"'`), liste as abandonadas com `SELECT id, listener_id, event_type, publication_date, completion_attempts, last_resubmission_date FROM shared.event_publication WHERE status = 'FAILED' AND last_resubmission_date >= publication_date + interval '24 hours' ORDER BY publication_date;` e devolva uma ao reenvio com `UPDATE shared.event_publication SET last_resubmission_date = publication_date WHERE id = '<id>' AND status = 'FAILED' AND last_resubmission_date >= publication_date + interval '24 hours';` (sem o `id`, todas). Com `give-up-after` diferente de 24 h, troque o intervalo. O job a reenvia na execução seguinte (até 1 min); se falhar de novo, ela volta a ficar abandonada depois dessa única tentativa. Para desistir de vez de uma publicação (o efeito não será feito), marque-a como concluída: `UPDATE shared.event_publication SET status = 'COMPLETED', completion_date = now() WHERE id = '<id>' AND status = 'FAILED';` (o expurgo a apaga depois da retenção). `OutboxRetryTest` executa o reenvio manual.
+  - **Expurgo:** o `CompletedEventPublicationPurgeJob` (ShedLock `events-purge-completed`, a cada hora) chama `CompletedEventPublications.deletePublicationsOlderThan(completed-retention)` do Modulith, que apaga só as linhas com `completion_date` anterior ao corte e `status` `COMPLETED`; as incompletas (pendentes, com falha ou abandonadas) nunca. O modo de conclusão continua o padrão (`spring.modulith.events.completion-mode: update`): `delete` apagaria na hora, sem retenção, e `archive` moveria para outra tabela, sem expurgo. Fora da trilha de auditoria (dado técnico).
+  - Por tudo isso, todo listener precisa ser idempotente: um evento pode ser entregue mais de uma vez (inclusive pelo staleness, que pode passar a `FAILED` um reenvio ainda em execução).
+  - **Testes:** `OutboxRetryTest` (com `MutableClockConfiguration` e o `ProbeListener`, que falha N vezes e conta as execuções em `ProbeState.invocationsOf`: backoff medido, abandono no 29º reenvio, métrica, job, staleness e reenvio manual), `OutboxRetryPolicyTest`, `CompletedEventPublicationPurgeTest` e `EventPublicationRegistryTest` (o boot de um segundo processo não reenvia nada). Nos testes, `RESUBMISSION_JOB_DEFERRED` e `OUTBOX_PURGE_DEFERRED` (`@IntegrationTest`) adiam os dois jobs: um contexto em cache com o relógio adiantado apagaria, no banco compartilhado, as publicações de outro teste.
+- Jobs são `@Scheduled` com `@SchedulerLock(name = "<nome-único>")`; o ShedLock trava em `shared.shedlock` usando a hora do banco. Exceção: tarefa que só lê para a própria instância (como o `refresh` do `OutboxMetrics`) não trava. `@EnableScheduling` e o `LockProvider` ficam em `shared/infrastructure/scheduling/SchedulingConfiguration.kt`.
+- O `spring-modulith-moments` está excluído do build: a data operacional só avança no fechamento do dia (`hotel`, M1).
+
+---
+
+## Contexto
+
+Em 2026-10-22 o usuário pediu para enxugar o `CLAUDE.md` do repositório (638 linhas, ~435 KB) e passar o conteúdo para um projeto no Second Brain, de onde os agentes do projeto o leriam por um hook obrigatório. Esta captura é uma de várias, uma por tema. O plano, as decisões da entrevista e a estrutura proposta estão na captura-índice [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f).
+
+## Origem
+
+- Projeto: ZenyHotelManager (servidor do PMS Zeny Hotel Manager), repositório local `/home/caio/repos/ZenyHotelManager`.
+- Arquivo: `CLAUDE.md`, linhas 564–577, commit `a6c0f03` (branch `main`).
+- Sessão do Claude Code iniciada no repositório (agente externo), 2026-10-22.
+
+## Por que registrar
+
+É a referência técnica que os agentes do projeto precisam para trabalhar neste tema. Depois da integração, sai do `CLAUDE.md` e passa a viver no brain (decisão do usuário, 2026-10-22).
+
+## Sugestão do agente para a integração
+
+Sugestão, não decisão: uma nota `ZenyHotelManager - Eventos e jobs`, ligada pela nota de projeto (hub) do ZenyHotelManager, com este texto (o curador decide o `type` e se divide ou funde com outra captura). Manter o texto técnico como está: caminhos, nomes de classes e códigos de erro são usados pelos agentes ao editar o código.
+
+## Limitações e incertezas
+
+- O texto descreve o código no commit `a6c0f03`; etapas seguintes publicarão capturas de atualização ("ZenyHotelManager - atualização Mx Ey").
+- Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn" e "Mx Ey" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md` e `docs/roadmaps/` do repositório, que não foram copiados.
+- Valores como `zeny`/`zeny`, `zeny_app` e `zeny-app-dev-only`, quando aparecem, são padrões públicos de desenvolvimento local já versionados no repositório, não credenciais de um ambiente real.
+
+## Possíveis conexões
+
+- [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]]

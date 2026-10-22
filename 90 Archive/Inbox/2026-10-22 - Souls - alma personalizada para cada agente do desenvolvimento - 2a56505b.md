@@ -1,6 +1,6 @@
 ---
 type: capture
-status: inbox
+status: archived
 created: 2026-10-22
 capture_id: 2a56505b-41ee-42d8-9935-bd73090533c7
 ---

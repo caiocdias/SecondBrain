@@ -1,0 +1,67 @@
+---
+type: capture
+status: archived
+created: 2026-10-22
+capture_id: ada44296-529e-4b1f-9386-ab1e5da05933
+---
+# ZenyHotelManager - Docker, observabilidade e CI
+
+## Conteúdo capturado
+
+Texto **literal** do `CLAUDE.md` do repositório ZenyHotelManager, linhas 540–563, no commit `a6c0f03` (2026-10-22): imagem e compose, actuator, logs, métricas e o workflow da CI. Foi escrito pelos agentes que executaram as etapas do roadmap (M0 E01 a M5 E03); as decisões do usuário aparecem no próprio texto com a data e a indicação "decisão do usuário" (ou "decidida pela opção recomendada em nome do usuário (delegado ao orquestrador)"). Nada foi resumido nem reescrito.
+
+---
+
+**Docker e compose** (RNF-01, ARCHITECTURE §15.1):
+
+- `docker/Dockerfile`: build com `eclipse-temurin:25-jdk-noble` (só `bootJar`, cache do Gradle no BuildKit, sem daemon e com o Kotlin compilando no processo do build, que tem `-Dorg.gradle.jvmargs=-Xmx2g` no `GRADLE_OPTS`: com o padrão de 512 MB o `compileKotlin` dava `OutOfMemoryError` desde o M4; fora do Docker, o mesmo heap vem do `gradle.properties` da raiz), runtime `eclipse-temurin:25-jre-alpine` com as camadas do Spring Boot (`jarmode=tools extract --layers`), usuário `zeny` (10001, não-root), arquivos do root só leitura e `HEALTHCHECK` com `wget` na readiness. A imagem não define profile nem segredos; opções da JVM ficam no `ENTRYPOINT` (não use `JAVA_TOOL_OPTIONS`/`JDK_JAVA_OPTIONS`: a JVM escreveria "Picked up…" fora do JSON).
+- `.dockerignore` (raiz) é uma lista de permissão: só `gradlew`, `gradle/`, os dois `*.gradle.kts` e `src/main/` entram no contexto. Arquivo novo necessário ao `bootJar` precisa entrar nela.
+- `docker/compose.yaml` (projeto `zeny`): `api` (sem porta publicada, depende do `db` saudável), `db` (`postgres:18`, volume em `/var/lib/postgresql`), `storage` (MinIO pela imagem comunitária `pgsty/minio`, porque a `minio/minio` deixou de ser publicada), `storage-init` (roda `docker/storage/init-storage.sh`: cria o bucket privado `ZENY_STORAGE_BUCKET` e o usuário de serviço da `api` com política só dele, e termina; a `api` espera ele concluir) e `proxy` (Caddy, só HTTP, `docker/caddy/Caddyfile`, em `127.0.0.1:80` por padrão; responde 404 para `/actuator/prometheus` e repassa ao MinIO só as URLs pré-assinadas dos anexos comuns: `GET`/`HEAD` de `/<bucket>/<chave>` com a chave não vazia, `X-Amz-Signature` na query e sem cabeçalho `Authorization`, com o `Host` original, que a assinatura inclui; a listagem, a raiz do bucket e a assinatura por cabeçalho caem na `api` e dão 401; `/api/v1/stream`, o SSE, vai à `api` com `flush_interval -1`, sem buffer). O `init-storage.sh` recusa bucket chamado `api` ou `actuator`. O `backup` e o TLS público entram no M8.
+- Variáveis: o compose lê `docker/.env` (ignorado pelo Git; o modelo é `docker/.env.example`, sem segredos: chaves, senha do admin e as senhas do MinIO, `ZENY_STORAGE_ROOT_PASSWORD` e `ZENY_STORAGE_SECRET_KEY`, vêm vazias, com os comandos `openssl` para gerá-las no cabeçalho). As credenciais não têm padrão no compose (`${VAR:?…}`): sem elas, ou vazias, `up` falha nomeando a variável. Quem conhece a senha do usuário de serviço do MinIO lê o bucket inteiro (pré-assinando ele mesmo as URLs), então ela nunca pode ser um valor conhecido. O `db` usa `ZENY_DB_MIGRATION_*` como `POSTGRES_USER`/`POSTGRES_PASSWORD` (o dono dos schemas) e monta `docker/postgres/initdb/`, que cria o papel da aplicação (`ZENY_DB_USERNAME`/`ZENY_DB_PASSWORD`) na primeira inicialização do volume. O nome do banco vem de `ZENY_DB_NAME` (padrão `zeny`), usado no `POSTGRES_DB` e na `ZENY_DB_URL` da `api`. O `api` recebe `ZENY_DB_*` e `ZENY_DB_MIGRATION_*`, `ZENY_ENCRYPTION_*`, `ZENY_JWT_*`, `ZENY_STORAGE_ACCESS_KEY`/`ZENY_STORAGE_SECRET_KEY` (obrigatórias; o usuário de serviço do MinIO), `ZENY_STORAGE_ENDPOINT` (`http://storage:9000`), `ZENY_STORAGE_PUBLIC_ENDPOINT` (padrão `http://localhost`; com outra porta do proxy, inclua-a), `ZENY_STORAGE_BUCKET`, `ZENY_ADMIN_LOGIN`/`ZENY_ADMIN_PASSWORD` (vazias por padrão: só servem no primeiro boot) e `ZENY_FCM_CREDENTIALS` (opcional, vazia por padrão: push desligado; o JSON da conta de serviço do Firebase em base64, nunca no repositório). O root do MinIO (`ZENY_STORAGE_ROOT_USER`/`ZENY_STORAGE_ROOT_PASSWORD`) vai só ao `storage` e ao `storage-init`; num `docker/.env` de antes da E08, o root era `ZENY_STORAGE_ACCESS_KEY`/`SECRET_KEY` (mova-o para `ZENY_STORAGE_ROOT_*`). Profile padrão do compose: `prod` (`ZENY_PROFILE`).
+
+**Observabilidade** (ARCHITECTURE §16):
+
+- Actuator: só `GET /actuator/health/liveness`, `/actuator/health/readiness` e `/actuator/prometheus` existem na web, abertos sem autenticação e sem detalhes (`{"status":"UP"}`). Os demais endpoints nem são criados (`management.endpoints.access.default: none`), e o `/actuator/health` agregado e qualquer outro caminho caem no `denyAll`. A readiness inclui o banco (`db`); a liveness, não. `ActuatorExposureTest` barra endpoint novo exposto: abrir outro exige mudar `application.yaml`, a `SecurityConfiguration` e o teste.
+- Logs: no `prod`, JSON ECS numa linha por evento (`logging.structured.format.console: ecs`), com `traceId`/`spanId` e, nas requisições autenticadas, `userId` e `deviceSessionId` do MDC (`ActorMdcFilter`, só os ids, nunca login ou token); no `local`, texto legível com os mesmos campos no padrão de correlação (`logging.pattern.correlation`). O tracing é a ponte OpenTelemetry do Micrometer, sem exportador (aceita e propaga `traceparent` W3C).
+- Valores do banco fora do log (M1 E03, corrigido no gate E09): numa violação de restrição, o PostgreSQL manda no DETAIL os valores da linha ("Key (login)=(…) already exists"). Por isso o driver conecta com `logServerErrorDetail=false` (`spring.datasource.hikari.data-source-properties`; a mensagem da exceção fica sem o DETAIL, e `serverErrorMessage.constraint` continua legível), o logger `org.hibernate.orm.jdbc.error` fica em `ERROR` (ele registraria em WARN cada `SQLException`) e o `db` do compose sobe com `log_error_verbosity=terse` e `log_min_error_statement=panic` (sem DETAIL nem o STATEMENT com os parâmetros). `UserManagementTest` e `RoleManagementTest` conferem que o login e o nome da role repetidos não aparecem na saída nem, numa violação forçada por SQL, na mensagem de nenhuma exceção da cadeia (e que a constraint continua legível).
+- Métricas: Micrometer no formato Prometheus, com a tag `application`. Técnicas (JVM, HTTP, Hikari) vêm do Boot. `OutboxMetrics` publica `zeny_outbox_publications{state="pending|failed|abandoned"}` e `zeny_outbox_publications_oldest_age_seconds{state=…}` (`failed` = ainda no reenvio automático; `abandoned` = fora dele, à espera do reenvio manual; M2 E12), recalculadas a cada `zeny.events.metrics.refresh-interval` (30 s; `NaN` se o banco não responder). `RealtimeMetrics` publica `zeny_realtime_connections` (conexões abertas no canal de tempo real). `GuestDocumentRekeyJob` publica `zeny_guests_documents_rekey_pending` (documentos de hóspede ainda numa chave que não é a ativa, medido no fim de cada execução; `NaN` antes da primeira). Regras de alerta em `docker/prometheus/alerts.yaml` (confira com `promtool check rules`). Métrica nova de módulo: um `MeterBinder` em `infrastructure`, nome `zeny.<módulo>.<coisa>`.
+- Nos testes, `@IntegrationTest` liga as métricas (`@AutoConfigureMetrics`), então o `/actuator/prometheus` responde como em produção.
+
+**CI** (`.github/workflows/ci.yml`, GitHub Actions; ARCHITECTURE §7 e §17, RNF-03). Roda em push na `main` e em todo pull request, com três jobs em paralelo e sem nenhum passo que ignore falha:
+
+- `build`: JDK 25 (Temurin), cache do Gradle (`gradle/actions/setup-gradle`, provedor `basic`, gravado só pela `main`), `./gradlew build` (tudo da tabela acima, com os testes de integração no Docker do runner) e `./gradlew checkOpenApi`. Publica como artefatos a documentação dos módulos (`spring-modulith-docs`, de `build/spring-modulith-docs/`) e o contrato (`openapi`); em falha, os relatórios dos testes (`test-reports`).
+- `api-compatibility`: `.github/scripts/check-api-breaking.sh` compara o `api/openapi.yaml` com o da base e falha em breaking change de nível `ERR` em `/api/v1` (endpoint, parâmetro ou propriedade removidos, tipo trocado, campo que vira obrigatório…). A base é, num PR, a ponta da branch de destino (o checkout é o commit de merge); num push na `main`, o commit anterior ao push (`github.event.before`) e, se ele faltar, for só zeros ou não existir (branch nova, push forçado), o pai do `HEAD`, nunca o próprio `HEAD`. Mudança incompatível vai para `/api/v2` (ARCHITECTURE §7). A exceção, decidida pelo usuário em 2026-10-13, é remover um endpoint v1 que já estava `deprecated` na base (e, se tiver `x-sunset`, só depois dessa data): primeiro se deprecia, depois se remove. As mudanças aparecem como anotações no PR.
+- **Push direto na `main` não é bloqueado:** como o trabalho é direto na `main`, uma quebra de API (ou qualquer outra falha) que entra por push só deixa a CI vermelha depois do fato. Para bloquear de verdade, seria preciso trabalhar com PR e proteger a `main` exigindo os três checks. Rode `.github/scripts/check-api-breaking.sh` e `./gradlew build` antes de cada push.
+- `image`: build de `docker/Dockerfile` com Buildx, sem push, com as camadas no cache do Actions.
+
+As actions ficam fixadas por SHA de commit, com a versão num comentário. O Dependabot (`.github/dependabot.yml`, decidido pelo usuário em 2026-10-13) abre por mês um único PR agrupado que atualiza as actions, trocando o SHA e o comentário juntos; dependências do Gradle e imagens Docker não entram nele. Numa atualização manual, troque também os dois juntos. Nenhum segredo é usado, e o token só lê o repositório (`permissions: contents: read`). Antes de subir uma mudança de API, rode `.github/scripts/check-api-breaking.sh` localmente. Valide o workflow com `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/ci.yml`.
+
+---
+
+## Contexto
+
+Em 2026-10-22 o usuário pediu para enxugar o `CLAUDE.md` do repositório (638 linhas, ~435 KB) e passar o conteúdo para um projeto no Second Brain, de onde os agentes do projeto o leriam por um hook obrigatório. Esta captura é uma de várias, uma por tema. O plano, as decisões da entrevista e a estrutura proposta estão na captura-índice [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f).
+
+## Origem
+
+- Projeto: ZenyHotelManager (servidor do PMS Zeny Hotel Manager), repositório local `/home/caio/repos/ZenyHotelManager`.
+- Arquivo: `CLAUDE.md`, linhas 540–563, commit `a6c0f03` (branch `main`).
+- Sessão do Claude Code iniciada no repositório (agente externo), 2026-10-22.
+
+## Por que registrar
+
+É a referência técnica que os agentes do projeto precisam para trabalhar neste tema. Depois da integração, sai do `CLAUDE.md` e passa a viver no brain (decisão do usuário, 2026-10-22).
+
+## Sugestão do agente para a integração
+
+Sugestão, não decisão: uma nota `ZenyHotelManager - Docker, observabilidade e CI`, ligada pela nota de projeto (hub) do ZenyHotelManager, com este texto (o curador decide o `type` e se divide ou funde com outra captura). Manter o texto técnico como está: caminhos, nomes de classes e códigos de erro são usados pelos agentes ao editar o código.
+
+## Limitações e incertezas
+
+- O texto descreve o código no commit `a6c0f03`; etapas seguintes publicarão capturas de atualização ("ZenyHotelManager - atualização Mx Ey").
+- Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn" e "Mx Ey" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md` e `docs/roadmaps/` do repositório, que não foram copiados.
+- Valores como `zeny`/`zeny`, `zeny_app` e `zeny-app-dev-only`, quando aparecem, são padrões públicos de desenvolvimento local já versionados no repositório, não credenciais de um ambiente real.
+
+## Possíveis conexões
+
+- [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]]

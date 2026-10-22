@@ -44,6 +44,14 @@ Uma captura pode gerar uma Source e uma Knowledge Note quando ambas forem úteis
 - Atualizar Maps existentes somente quando a relação intelectual for justificável. A criação de um novo Map é proposta ao usuário.
 - Na Source, metadados desconhecidos ficam ausentes; nunca completar autor, data, DOI ou URL por suposição.
 
+## Projetos com hub
+
+Projetos de software registrados pela skill `development-roadmap` guardam a referência técnica no vault, e o repositório carrega a nota de projeto por um hook (`load-brain.py <Projeto>`). As capturas desses projetos trazem uma captura-índice com o pedido do usuário para registrar o projeto, que vale como pedido de criação da nota de projeto. A integração segue esta forma:
+
+- **Hub**: nota `type: project` em `10 Projects/`, com o nome exato do projeto usado pelo hook (ou esse nome nos `aliases`). O hook a injeta inteira em toda sessão do repositório: manter abaixo de ~8.000 caracteres, com objetivo, repositório, estado atual em poucas linhas, um índice das notas de tema (uma linha cada, dizendo quando lê-la), o fluxo de atualização por capturas, próximos passos e perguntas abertas.
+- **Notas de tema**: `type: knowledge`, `status: processed`, em `20 Knowledge/`, com nome `<Projeto> - <Tema>`, `projects` apontando para o hub e ligadas pelo índice dele. O texto técnico vindo do repositório é preservado, não resumido: caminhos, classes e códigos de erro são usados pelos agentes ao editar o código.
+- **Capturas de atualização** (`<Projeto> - atualização …`): o texto entra na nota de tema indicada, substituindo ou complementando o trecho correspondente como a captura disser, e o estado vai para o hub, com proveniência em cada nota alterada. Conferir depois que o hub continua abaixo do limite.
+
 ## Proveniência
 
 Toda nota que recebe uma integração registra, em uma seção `## Proveniência` ao final, a data, o link para a captura, o `capture_id` e a natureza do que foi integrado. Formato:

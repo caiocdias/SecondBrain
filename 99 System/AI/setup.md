@@ -8,6 +8,7 @@ Documento principal sobre como preparar um computador (Linux, macOS ou Windows) 
 |---|---|
 | Vault (Git) | Contrato e protocolos; skills pessoais e plugins locais em `99 System/Skills/`; registro dos plugins de marketplace em `99 System/Skills/plugins.txt`; skills de projeto em `.claude/skills/`; configuração do Obsidian; scripts de sincronização (`sync-skills.sh` e `sync-skills.ps1`). |
 | Máquina, fora do Git | Bloco *Second Brain* em `~/.claude/CLAUDE.md`; leitura do vault e hooks em `~/.claude/settings.json`; links em `~/.claude/skills/`; arquivos dos plugins instalados (`~/.claude/plugins/`). Reconstruídos por este procedimento. |
+| Repositórios de projeto | `.claude/settings.json` com o hook que carrega o projeto do brain, chamando `load-brain.py` da skill `development-roadmap` pelo link em `~/.claude/skills/` (ver [[99 System/AI/processing]], "Projetos com hub"). Funciona em qualquer máquina configurada por este procedimento. |
 | Conta do usuário | Skills e plugins sincronizados do claude.ai (`~/.claude/skills/synced/` e `~/.claude/plugins/synced/`, voltam após o login); memória automática do Claude Code. Não fazem parte do vault. |
 
 O `plugins.txt` registra quais plugins usar, não os arquivos deles: o Claude Code baixa e atualiza cada plugin a partir do marketplace. Plugins instalados no escopo de usuário entram no registro automaticamente pelo script de sincronização; o registro só cresce, e remover um plugin dele é decisão manual do usuário.
@@ -19,6 +20,7 @@ O `plugins.txt` registra quais plugins usar, não os arquivos deles: o Claude Co
 - Claude Code instalado, com login na conta do usuário.
 - Vault clonado ou copiado em qualquer pasta. Sugestão: `~/SecondBrain` ou `%USERPROFILE%\SecondBrain`.
 - Windows: PowerShell 5.1 ou superior, que já vem no sistema. Não é preciso administrador nem modo de desenvolvedor, porque os links são junctions.
+- Python 3 no PATH como `python3`: usado pelos scripts da skill `development-roadmap` e pelo hook do brain nos repositórios de projeto. No Windows, o comando do hook (`python3` e `${CLAUDE_CONFIG_DIR:-$HOME/.claude}`) pressupõe que o Claude Code rode hooks num shell POSIX como o Git Bash; ainda não foi verificado lá.
 - Obsidian é opcional.
 
 ## Detecção
@@ -29,6 +31,7 @@ A máquina está configurada quando os itens abaixo existem e apontam para o cam
 2. `~/.claude/settings.json` tem o vault em `permissions.additionalDirectories` e hooks `SessionStart` e `SessionEnd` que executam o script de sincronização deste vault.
 3. Cada skill de `99 System/Skills/` aparece em `~/.claude/skills/` como link para o vault.
 4. Cada plugin de `99 System/Skills/plugins.txt` aparece em `claude plugin list`.
+5. `python3 --version` responde.
 
 Se algum item faltar ou apontar para outro caminho (vault movido), a sessão curadora informa o usuário e executa o procedimento após confirmação.
 
@@ -113,6 +116,7 @@ Se a instalação pedir confirmação de um comando declarado pelo marketplace o
 
 - Cada skill de `99 System/Skills/` aparece em `~/.claude/skills/` como link para o vault, e `~/.claude/skills/synced/` não foi alterado.
 - Cada plugin de `plugins.txt` aparece em `claude plugin list`.
+- Hook do brain: para um projeto com hub em `10 Projects/`, `python3 -I ~/.claude/skills/development-roadmap/scripts/load-brain.py <Projeto>` imprime `BRAIN: carregado (<Projeto>)`. Sem Python 3, informar o usuário: os repositórios com o hook vão parar pedindo a configuração.
 - Opcional: em outro diretório, `claude -p "liste os nomes das skills disponíveis"` deve incluir as skills do vault.
 - Se `git config user.name` ou `user.email` estiverem vazios, informar o usuário; não configurar a identidade sem pedido.
 

@@ -36,6 +36,7 @@ Cole o "Prompt de execução" numa sessão limpa do Claude Code, na raiz do repo
 - Estrutura relevante: `<caminho>` — <papel>
 - Comandos confirmados: `<comando>` (fonte: `<arquivo>`)
 - Design e documentos de referência: `<docs/superpowers/specs/AAAA-MM-DD-tema-design.md>`, `<SPEC.md §x>`
+- Conhecimento do projeto no Second Brain: hub `<Projeto>` e notas de tema `<Projeto> - <Tema>` usadas pelo escopo (omita se o projeto não está registrado no brain)
 
 ## Escopo
 
@@ -87,7 +88,15 @@ Souls: nenhuma definida para estes papéis. Quando existir uma soul para um pape
 3. **Início:** troque a tag para `#em-andamento` (índice e título).
 4. **Plano:** use `superpowers:writing-plans`. A spec é a seção desta etapa mais o design citado em "Contexto confirmado"; as "Restrições e invariantes" entram como Global Constraints. Salve em `docs/superpowers/plans/AAAA-MM-DD-<slug>-eNN.md`. A execução já está definida (abaixo): não pergunte ao usuário o método, apenas siga.
 5. **Execução:** use `superpowers:subagent-driven-development` com esse plano, incluindo a revisão final da etapa. Não invoque `superpowers:finishing-a-development-branch` ao fim da etapa: ele roda uma vez, no fim do lote.
-6. **Fechamento:** marque `#concluida` (índice e título) só com a revisão final limpa e cada critério de aceite verificado com evidência. Diante de impedimento real, marque `#bloqueada` e preencha "Bloqueios" com causa, evidência, impacto e ação de desbloqueio. Preencha "Evidências e handoff". Rulings do ledger que mudam contrato, escopo, segurança, dados ou algo caro de desfazer vão para "Decisões para o usuário".
+6. **Fechamento:** publique a captura de atualização do brain, se o bloco "Second Brain" se aplica. Marque `#concluida` (índice e título) só com a revisão final limpa e cada critério de aceite verificado com evidência. Diante de impedimento real, marque `#bloqueada` e preencha "Bloqueios" com causa, evidência, impacto e ação de desbloqueio. Preencha "Evidências e handoff". Rulings do ledger que mudam contrato, escopo, segurança, dados ou algo caro de desfazer vão para "Decisões para o usuário".
+
+**Second Brain**
+
+Vale se o `CLAUDE.md` tiver a seção "Conhecimento do projeto no Second Brain"; senão, ignore este bloco.
+
+- O contexto da sessão precisa trazer a linha `BRAIN: carregado (<Projeto>)`, injetada pelo hook. Sem ela, pare e relate.
+- Na conferência de cada etapa, leia as notas de tema do brain ligadas a ela e as capturas pendentes do projeto que tratem do assunto: são a referência técnica do projeto.
+- No fechamento de cada etapa que mudou algo descrito no brain (inclusive o estado do roadmap), o orquestrador publica em `00 Inbox/` do vault a captura `<Projeto> - atualização <slug> Eyy`, com o texto novo ou alterado de cada nota afetada e qual nota ele substitui ou complementa, conforme o contrato de agente externo do vault. Nunca edite notas do brain nem registre referência técnica no `CLAUDE.md`.
 
 **Paradas**
 
@@ -105,7 +114,7 @@ Execute o roadmap <caminho/relativo/roadmap-slug.md> deste repositório seguindo
 
 Limite desta execução: no máximo 3 etapas concluídas.
 
-1. Leia CLAUDE.md (e AGENTS.md, se existir) e, no roadmap, o cabeçalho inteiro, o protocolo e o índice. Rode git status e git branch -a.
+1. Leia CLAUDE.md (e AGENTS.md, se existir) e, no roadmap, o cabeçalho inteiro, o protocolo e o índice. Se o CLAUDE.md exigir o Second Brain, confira a linha BRAIN: carregado no contexto e leia o hub. Rode git status e git branch -a.
 2. Se alguma etapa estiver #em-andamento, retome-a a partir do ledger do superpowers e do handoff; não recomece tarefas já commitadas.
 3. Crie ou retome o worktree/branch roadmap/<slug> com superpowers:using-git-worktrees. Não trabalhe na branch principal.
 4. Repita, uma etapa por vez: escolha a próxima etapa elegível, marque #em-andamento, planeje com superpowers:writing-plans (spec = seção da etapa + design citado), execute com superpowers:subagent-driven-development, feche a etapa e preencha o handoff conforme o protocolo.

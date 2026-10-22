@@ -1,0 +1,56 @@
+---
+type: capture
+status: archived
+created: 2026-10-22
+capture_id: a0a42caf-113e-4308-986a-30775093e9cf
+---
+# ZenyHotelManager - Módulos hotel e staff
+
+## Conteúdo capturado
+
+Texto **literal** do `CLAUDE.md` do repositório ZenyHotelManager, linhas 186–197, no commit `a6c0f03` (2026-10-22): hotel singleton, data operacional, políticas e a escala de pessoas. Foi escrito pelos agentes que executaram as etapas do roadmap (M0 E01 a M5 E03); as decisões do usuário aparecem no próprio texto com a data e a indicação "decisão do usuário" (ou "decidida pela opção recomendada em nome do usuário (delegado ao orquestrador)"). Nada foi resumido nem reescrito.
+
+---
+
+- **Hotel e data operacional** (RF-CFG-01 a 05, RN-01, RN-11, RNF-14, M1 E06; módulo `hotel`, depende de `shared` e, desde a E08, de `files` para o logotipo):
+  - **Singleton:** o hotel nasce no primeiro boot (`HotelInitializer`, auditado como `hotel.hotel.initialize`, ator sistema) sem dados cadastrais (`configured` falso), com o fuso `America/Sao_Paulo`, as políticas, taxas e parâmetros padrão e a data operacional = hoje no fuso do hotel. Cada tabela do schema `hotel` tem no máximo uma linha (`hotel_singleton_uk`); as outras partes usam o id do hotel como chave.
+  - **Endpoints:** `GET/PUT /api/v1/hotel`, `/policies`, `/tax-settings` e `/operational-settings`, cada parte com o seu `ETag` (`If-Match` no `PUT`); consultar exige `hotel.settings.read` (sugerida a Gerente, Recepcionista e Financeiro), editar `hotel.settings.manage` (só o Administrador; não sensível). `GET /api/v1/hotel/business-date` (`businessDate`, `timezone`) não exige permissão. Recusas da validação: `400` com o código do módulo (`HotelErrorCodes`) e o campo em `errors[]` — `INVALID_ADDRESS`, `INVALID_TIMEZONE` (só fuso de região), `TIME_NOT_WHOLE_MINUTE` (horário com segundos), `CHECK_TIMES_INCOHERENT`, `CLEANING_WINDOW_TOO_LONG` (janela ou intervalo check-out→check-in acima de 3h), `CLEANING_WINDOW_INVALID`, `EARLY_CHECK_IN_INVALID`, `LATE_CHECK_OUT_INVALID`, `CHILD_AGES_INVALID`, `POLICY_TEXT_REQUIRED`, `SERVICE_CHARGE_RATE_INVALID`, `ISS_RATE_INVALID` (0 a 5%), `TOURISM_FEE_INVALID`, `OPERATIONAL_SETTING_INVALID`; CNPJ inválido é `400 VALIDATION_FAILED` no campo `cnpj` (o DTO usa `Cnpj`). O banco repete as regras em `CHECK`.
+  - **API pública** (`HotelApi`, raiz do módulo): `timezone()`, `currentBusinessDate()`, `policy()`, `taxSettings()`, `operationalSettings()` (sem checar permissão: quem chama já se autorizou) e `advanceBusinessDate(expectedCurrent)`, que trava a linha (`FOR UPDATE`), avança exatamente um dia, recusa outra data com `409 BUSINESS_DATE_MISMATCH` sem efeito, é auditada (`hotel.business-date.advance`) e publica `BusinessDateAdvanced(previous, current, advancedAt)` na transação (outbox). Só o fechamento do dia (`endofday`, M6) a chama; nenhum endpoint avança a data, e um trigger em `hotel.business_day` recusa qualquer mudança da data que não seja +1 dia.
+  - **Taxa de serviço por ponto de venda e código de lançamento** (M3/M8): o módulo dono guarda a própria taxa, anulável, e cai em `HotelApi.taxSettings().serviceChargeRate` quando não tem. O logotipo é o id de um anexo (`logoFileId`), validado desde a E08 pela `FilesApi` (finalidade `hotel.logo`; inválido `422 LOGO_FILE_INVALID`) e vinculado ao hotel (H8).
+  - **Testes:** `HotelDomainTest`, `HotelSettingsApiTest` e `BusinessDateTest` (com `@EnableScenarios` e um listener de teste, `BusinessDateListenerConfiguration`, porque o outbox só grava a publicação quando há listener).
+- **Pessoas e escala** (RF-PES-01 a 04, RF-ACS-12, H6, H7, M1 E07; módulo `staff`, depende de `shared`, `iam` (só a `IamApi`) e `hotel` (a data operacional)):
+  - **Cadastro:** setores (`/api/v1/departments`; os seis da SPEC §5.3 vêm da migração com a chave `DepartmentKey`, renomeáveis), colaboradores (`/api/v1/employees`, com `POST …/{id}/deactivate` e `/reactivate`) e turnos por setor (`/api/v1/shifts`; horas e minutos no fuso do hotel, fim antes do início = atravessa a meia-noite, e a entrada pertence à data em que o turno começa). Consultar exige `staff.employees.read`; escrever, `staff.employees.manage`; `If-Match` nos `PUT`. Setor e colaborador nunca são apagados: não há `DELETE` e um trigger (`staff.refuse_delete`) recusa a exclusão no banco.
+  - **Vínculo com usuário** (H7): `Employee.userId`, validado pela API pública `IamApi.findUser` (raiz do `iam`, a única que `staff` usa): inexistente `400 UNKNOWN_USER` (campo `userId`), inativo `422 USER_INACTIVE`, já vinculado a outro colaborador `409 USER_ALREADY_LINKED` (também no banco, `employee_user_uk`). Só um usuário novo no vínculo é validado (manter o atual não falha mesmo que ele tenha sido desativado depois).
+  - **Escala:** padrões por colaborador e turno (`/api/v1/schedule-patterns`: `TWELVE_THIRTY_SIX` um dia sim, um não, a partir do início; `SIX_ON_ONE_OFF` seis dias e uma folga em ciclos de 7 a partir do início; `FIXED` nos `weekdays`), sem sobreposição de ativos do mesmo colaborador (`409 SCHEDULE_PATTERN_OVERLAP`, e `EXCLUDE USING gist` no banco), desativáveis. `POST /api/v1/schedule/generate` (período de até 92 dias a partir da data operacional; antes dela `422 SCHEDULE_PERIOD_IN_PAST`) cria, refaz e retira só as entradas `source = PATTERN`; `POST /api/v1/schedule/entries` lança `SHIFT`, `SWAP`, `DAY_OFF`, `ABSENCE` ou `VACATION` por período como `MANUAL`, que prevalece: a geração nunca a sobrescreve nem retira. Uma entrada por colaborador e data (`schedule_entry_day_uk`). `GET /api/v1/schedule` (sem `from`, a data operacional de `HotelApi.currentBusinessDate()`). Ler exige `staff.schedule.read` (`OWN`: só o colaborador vinculado ao usuário, filtrado na SQL); escrever, `staff.schedule.manage`. Desativar um colaborador retira as entradas de trabalho dele a partir da data operacional (as ausências ficam), e a geração ignora inativos. As escritas sobre um colaborador o travam (`SELECT … FOR UPDATE`) antes; a geração trava os do escopo em ordem de id.
+  - **API pública** (`StaffApi`, raiz do módulo): `daySchedule(date, departmentId)` (quem trabalha na data no setor do turno, com o turno, em ordem de início; sem folgas, faltas e férias), `departments()` e `employeeOfUser(userId)`, sem checar permissão. Permissões sugeridas: Gerente todas, Governanta as duas de leitura (`ALL`), Camareira, Manutenção e Garçom `staff.schedule.read` com `OWN`; nenhuma sensível.
+  - **Testes:** `ScheduleDomainTest` (datas dos padrões em 30 dias, exceções que prevalecem) e `StaffApiTest` (com `StaffTestSupport`, que cria setor, colaborador, turno e padrão pela API); a geração nos testes sempre limita o setor ou o colaborador, porque o banco é compartilhado.
+
+---
+
+## Contexto
+
+Em 2026-10-22 o usuário pediu para enxugar o `CLAUDE.md` do repositório (638 linhas, ~435 KB) e passar o conteúdo para um projeto no Second Brain, de onde os agentes do projeto o leriam por um hook obrigatório. Esta captura é uma de várias, uma por tema. O plano, as decisões da entrevista e a estrutura proposta estão na captura-índice [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f).
+
+## Origem
+
+- Projeto: ZenyHotelManager (servidor do PMS Zeny Hotel Manager), repositório local `/home/caio/repos/ZenyHotelManager`.
+- Arquivo: `CLAUDE.md`, linhas 186–197, commit `a6c0f03` (branch `main`).
+- Sessão do Claude Code iniciada no repositório (agente externo), 2026-10-22.
+
+## Por que registrar
+
+É a referência técnica que os agentes do projeto precisam para trabalhar neste tema. Depois da integração, sai do `CLAUDE.md` e passa a viver no brain (decisão do usuário, 2026-10-22).
+
+## Sugestão do agente para a integração
+
+Sugestão, não decisão: uma nota `ZenyHotelManager - Módulos hotel e staff`, ligada pela nota de projeto (hub) do ZenyHotelManager, com este texto (o curador decide o `type` e se divide ou funde com outra captura). Manter o texto técnico como está: caminhos, nomes de classes e códigos de erro são usados pelos agentes ao editar o código.
+
+## Limitações e incertezas
+
+- O texto descreve o código no commit `a6c0f03`; etapas seguintes publicarão capturas de atualização ("ZenyHotelManager - atualização Mx Ey").
+- Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn" e "Mx Ey" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md` e `docs/roadmaps/` do repositório, que não foram copiados.
+- Valores como `zeny`/`zeny`, `zeny_app` e `zeny-app-dev-only`, quando aparecem, são padrões públicos de desenvolvimento local já versionados no repositório, não credenciais de um ambiente real.
+
+## Possíveis conexões
+
+- [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]]

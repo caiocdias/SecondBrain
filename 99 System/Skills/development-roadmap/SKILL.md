@@ -1,6 +1,6 @@
 ---
 name: development-roadmap
-description: Cria ou atualiza um roadmap de desenvolvimento em Markdown, ancorado no código e na documentação reais do repositório, que divide um projeto ou fase em etapas com tags de estado (#pendente, #em-andamento, #concluida, #bloqueada), dependências, critérios de aceite, decisões em aberto e revisão humana. Cada etapa é planejada e executada pelo plugin superpowers (writing-plans e subagent-driven-development) numa branch do roadmap, um lote de etapas por vez, a partir de um único prompt de execução. Use sempre que o usuário pedir roadmap, plano de desenvolvimento em etapas ou fases, quebrar uma feature, spec ou sistema em várias sessões, ou atualizar/sincronizar o estado de um roadmap existente, mesmo sem dizer "roadmap". Para um trabalho que cabe num único plano, use direto superpowers:brainstorming e superpowers:writing-plans. Não use para roadmaps só de produto/negócio nem para implementar as etapas.
+description: Cria ou atualiza um roadmap de desenvolvimento em Markdown, ancorado no código e na documentação reais do repositório, que divide um projeto ou fase em etapas com tags de estado (#pendente, #em-andamento, #concluida, #bloqueada), dependências, critérios de aceite, decisões em aberto e revisão humana. Cada etapa é planejada e executada pelo plugin superpowers (writing-plans e subagent-driven-development) numa branch do roadmap, um lote de etapas por vez, a partir de um único prompt de execução. Use sempre que o usuário pedir roadmap, plano de desenvolvimento em etapas ou fases, quebrar uma feature, spec ou sistema em várias sessões, ou atualizar/sincronizar o estado de um roadmap existente, mesmo sem dizer "roadmap". Use também para registrar um projeto no Second Brain ou enxugar o CLAUDE.md dele. Para um trabalho que cabe num único plano, use direto superpowers:brainstorming e superpowers:writing-plans. Não use para roadmaps só de produto/negócio nem para implementar as etapas.
 ---
 
 # Development Roadmap
@@ -14,17 +14,29 @@ Um roadmap organiza um trabalho grande demais para um único plano em **etapas**
 
 Se o superpowers não estiver instalado, avise o usuário (ele está registrado no Second Brain e é instalado pela configuração da máquina) e pare antes de escrever o roadmap.
 
-A estrutura do documento está em `references/template.md`; leia-o antes de escrever. Ao final, valide com `scripts/check_roadmap.py`.
+A estrutura do documento está em `references/template.md`; leia-o antes de escrever. Ao final, valide com `scripts/check_roadmap.py`. O registro do projeto no Second Brain está em `references/brain.md`.
 
 ## Limite da tarefa
 
 Produza ou atualize o arquivo de roadmap. Não planeje tarefas, não implemente, não faça commit e não altere outros arquivos, salvo pedido explícito do usuário. O valor do roadmap está em ser revisável antes de qualquer mudança de código.
 
+Única exceção: o registro do projeto no Second Brain (§0), feito só depois do ok do usuário. Ele cria capturas na Inbox do vault, mescla o hook no `.claude/settings.json` e troca o `CLAUDE.md` pelo enxuto.
+
+## 0. Projeto no Second Brain
+
+O conhecimento técnico de todo projeto vive no Second Brain do usuário, e o `CLAUDE.md` fica enxuto. Em toda execução, antes de investigar, leia `references/brain.md` e faça a verificação de lá:
+
+- **projeto registrado** (hub, hook, `CLAUDE.md` enxuto e hook respondendo): siga;
+- **falta algo**: proponha o registro por entrevista com opção recomendada e, com o ok, faça a migração antes do roadmap;
+- **usuário recusou ou vault inacessível**: siga só com o roadmap e diga isso na resposta final.
+
+A sessão do repositório é agente externo do vault: só cria capturas em `00 Inbox/`, nunca edita notas. O hub e as notas de tema são criados pelo curador quando o usuário processa a Inbox.
+
 ## 1. Investigue o contexto antes de planejar
 
 Um roadmap só é útil se os caminhos, comandos e interfaces citados existirem de fato. Faça inspeções somente leitura suficientes para ancorar o plano:
 
-1. Identifique a raiz do projeto (ou subprojeto, num monorepo) e leia as instruções aplicáveis: `CLAUDE.md` na hierarquia relevante, `.claude/` e `AGENTS.md`, se existir.
+1. Identifique a raiz do projeto (ou subprojeto, num monorepo) e leia as instruções aplicáveis: `CLAUDE.md` na hierarquia relevante, `.claude/` e `AGENTS.md`, se existir. Num projeto registrado no brain, leia também o hub, as notas de tema ligadas ao escopo e as capturas pendentes do projeto: é lá que estão convenções, módulos e estado.
 2. Leia `README`, manifestos de build, configuração de CI, documentação de arquitetura/especificação (inclusive `docs/superpowers/specs/`) e as áreas de código e testes relacionadas ao pedido.
 3. Rode `git status`, `git branch -a` e `git log --oneline -n 20` para conhecer o estado atual, branches de roadmap existentes e mudanças do usuário.
 4. Registre apenas stack, comandos, caminhos, interfaces e restrições confirmados. Comandos de build/teste só valem se aparecem em manifesto, CI, README ou instruções do projeto.
@@ -42,7 +54,7 @@ Decisões que cabem ao usuário (decisões em aberto que impedem o plano inteiro
 
 ### Projeto sem código (greenfield)
 
-Não invente comandos de validação. A primeira etapa estabelece o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack e os comandos oficiais de build, teste e lint, registrando-os em "Evidências e handoff" e no README/CLAUDE.md. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
+Não invente comandos de validação. A primeira etapa estabelece o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack e os comandos oficiais de build, teste e lint, registrando-os em "Evidências e handoff", no README e na tabela de comandos do `CLAUDE.md` enxuto. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
 
 ## 2. Dimensione o escopo
 
@@ -104,6 +116,7 @@ Regras, e o motivo delas:
 - Etapa cancelada ou substituída sai do índice e do corpo e é registrada no "Histórico de revisões" com o motivo; seu ID nunca é reutilizado. Etapas `#concluida` nunca são removidas.
 - Se o código divergiu do plano, ajuste escopo e critérios das etapas pendentes afetadas.
 - Mantenha um breve "Histórico de revisões" no fim do arquivo.
+- Num projeto registrado no brain, troque nas etapas pendentes "atualize o `CLAUDE.md`" por "publique a captura de atualização do brain" e "seção X do `CLAUDE.md`" pela nota de tema correspondente, e acrescente ao protocolo a seção "Second Brain" do template, se faltar.
 - **Roadmap no formato antigo** (com "Estratégia de execução", prompt por etapa, snapshot por `git write-tree` ou orquestrador próprio): migre para este formato. Troque o cabeçalho de execução pelo do template, remova estratégias e prompts das etapas não concluídas, preserve as evidências das concluídas e registre a migração no histórico.
 
 ## 7. Execução
@@ -117,6 +130,7 @@ Decisões de desenho que o template incorpora (mantenha-as ao adaptar):
 - **Integração só no fim do lote**: `finishing-a-development-branch` roda uma vez, ao fim do lote, e é o usuário quem decide merge, PR, manter ou descartar. Nada de push, merge ou deploy sem ele.
 - **Decisões do usuário**: o superpowers decide ambiguidades sozinho e registra *rulings* no ledger. As que mudam contrato, escopo, segurança, dados ou algo caro de desfazer vão para "Decisões para o usuário" no handoff e, ao parar, são apresentadas como entrevista com opção recomendada.
 - **Lote limitado**: para numa etapa com Revisão humana: sim (depois de concluí-la), numa etapa `#bloqueada` ou em divergência do plano, nas paradas do próprio superpowers (operação destrutiva, ação sensível de segurança, efeito fora da branch, plano sem caminho viável) e ao atingir o **limite de etapas por execução** (padrão 3, editável no prompt). Lotes pequenos mantêm o diff revisável.
+- **Second Brain**: num projeto registrado, o orquestrador lê o hub e as notas de tema da etapa e, no fechamento de cada etapa que mudou algo descrito no brain (inclusive o estado), publica a captura `<Projeto> - atualização <slug> Eyy`. A referência técnica nunca volta para o `CLAUDE.md`.
 - **Papéis e Souls**: o protocolo nomeia os papéis (orquestrador, planejador, implementador, revisor de tarefa, revisor final) e o que cada um usa no superpowers. Cada papel poderá receber no futuro uma *soul* personalizada; enquanto não houver uma definida, valem os prompts padrão do superpowers. Não invente souls.
 
 ## 8. Antes de entregar
@@ -138,8 +152,9 @@ Depois, revise o que o script não vê:
 - bloqueios são acionáveis e não confundem dependência normal com impedimento;
 - dependências respeitam a arquitetura documentada;
 - o gate final depende das etapas-folha;
-- nenhum fato inventado: cada caminho/comando citado foi visto no repositório ou está rotulado como hipótese/"a criar".
+- nenhum fato inventado: cada caminho/comando citado foi visto no repositório ou está rotulado como hipótese/"a criar";
+- num projeto registrado no brain, nenhuma etapa manda registrar referência técnica no `CLAUDE.md`.
 
 ## Resposta final
 
-Informe o caminho do roadmap, a quantidade de etapas, um resumo de uma linha por etapa (ou por grupo), as decisões em aberto (em forma de entrevista com opção recomendada, se puderem ser resolvidas agora) e como executar: colar o "Prompt de execução" numa sessão limpa na raiz do repositório, que roda até o limite de etapas na branch `roadmap/<slug>`. Lembre de liberar antes os comandos de build/teste do projeto nas permissões do Claude Code, se quiser que o lote rode sem interrupções. Não cole o documento inteiro na resposta.
+Se houve registro no brain, informe as capturas criadas, os arquivos alterados no repositório (sem commit) e que é preciso processar a Inbox numa sessão do vault. Se o projeto ficou fora do brain, diga isso. Depois, informe o caminho do roadmap, a quantidade de etapas, um resumo de uma linha por etapa (ou por grupo), as decisões em aberto (em forma de entrevista com opção recomendada, se puderem ser resolvidas agora) e como executar: colar o "Prompt de execução" numa sessão limpa na raiz do repositório, que roda até o limite de etapas na branch `roadmap/<slug>`. Lembre de liberar antes os comandos de build/teste do projeto nas permissões do Claude Code, se quiser que o lote rode sem interrupções. Não cole o documento inteiro na resposta.
