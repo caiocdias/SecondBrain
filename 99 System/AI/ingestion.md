@@ -13,7 +13,7 @@ Capture texto, referência, URL, observação, pergunta, aprendizado ou arquivo 
 
 ## Antes de publicar
 
-1. Obter a data real (`date +%F`).
+1. Obter a data real (`date +%F`; no PowerShell, `Get-Date -Format yyyy-MM-dd`).
 2. Gerar o `capture_id` ([[99 System/AI/schemas]]).
 3. Fazer uma busca breve por registro equivalente, sem carregar o vault inteiro: termos-chave, URL ou nome do projeto em `00 Inbox/`, e títulos e aliases das notas permanentes. Havendo equivalente, seguir "Capturas equivalentes" em [[99 System/AI/external-agents]].
 

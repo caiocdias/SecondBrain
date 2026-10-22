@@ -80,9 +80,20 @@ Os dois primeiros pedidos podem ser usados a partir de outros projetos, por um a
 
 ## Integração com Claude Code
 
-- **Skill global `second-brain`** (`~/.claude/skills/second-brain/`): consulta e captura a partir de qualquer projeto. Fora do vault, só cria novas capturas em `00 Inbox/`. O vault está liberado para leitura em todas as sessões por `permissions.additionalDirectories` em `~/.claude/settings.json`, e um bloco curto em `~/.claude/CLAUDE.md` aponta para a skill.
+### Novo computador
+
+1. Clone ou copie o vault para qualquer pasta (Linux, macOS ou Windows).
+2. Abra o Claude Code na raiz do vault (`cd` para a pasta e `claude`).
+3. Peça "configure esta máquina" (ou `/configurar-maquina`). A sessão segue [[99 System/AI/setup]]: grava o bloco do vault em `~/.claude/CLAUDE.md`, libera a leitura do vault e instala os hooks em `~/.claude/settings.json` e liga as skills de `99 System/Skills/`. Se você esquecer, a sessão curadora percebe a máquina não configurada e oferece a configuração.
+4. Opcional: abra a pasta como vault no Obsidian.
+
+### Componentes
+
+- **Repositório de skills** (`99 System/Skills/`): todas as skills pessoais do Claude Code ficam versionadas no vault e aparecem em `~/.claude/skills/` como links. Skills novas criadas ou instaladas em `~/.claude/skills/` são trazidas para o vault automaticamente por um hook de início e fim de sessão. Detalhes em [[99 System/Skills/README]].
+- **Skill global `second-brain`** (`99 System/Skills/second-brain/`): consulta e captura a partir de qualquer projeto. Fora do vault, só cria novas capturas em `00 Inbox/`. O vault fica liberado para leitura em todas as sessões por `permissions.additionalDirectories` em `~/.claude/settings.json`, e o bloco *Second Brain* em `~/.claude/CLAUDE.md` informa o caminho do vault e aponta para a skill.
+- **Skill de projeto `configurar-maquina`** (`.claude/skills/` do vault): prepara o computador conforme [[99 System/AI/setup]].
 - **Skill de projeto `processar-inbox`** (`.claude/skills/` do vault): disponível somente em sessões iniciadas na raiz do vault, para o curador incorporar a Inbox (`/processar-inbox` ou "processe minha Inbox").
-- As skills são apenas portas de entrada: os protocolos em `99 System/AI/` continuam sendo a fonte da verdade. Os arquivos em `~/.claude/` ficam fora do repositório do vault.
+- As skills são apenas portas de entrada: os protocolos em `99 System/AI/` continuam sendo a fonte da verdade. As configurações em `~/.claude/` ficam fora do repositório do vault; as skills pessoais, não.
 
 ## Bases e Git
 

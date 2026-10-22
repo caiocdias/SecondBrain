@@ -17,6 +17,7 @@ Permitido:
 
 - Ler notas pertinentes em todo o vault.
 - Criar novos arquivos de captura e seus anexos em `00 Inbox/`.
+- Criar ou editar skills em `99 System/Skills/` (inclusive pelos links em `~/.claude/skills/`) quando o usuário pedir explicitamente. Skills não são conteúdo do brain; o hook de sincronização também move para lá skills novas criadas em qualquer sessão ([[99 System/AI/setup]]).
 
 Não permitido:
 

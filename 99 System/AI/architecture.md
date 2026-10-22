@@ -30,6 +30,7 @@ O vault deve continuar compreensível fora do Obsidian e utilizável sem IA ou p
 | `99 System/AI/` | Protocolos normativos para agentes. |
 | `99 System/Templates/` | Modelos de preenchimento; excluídos de buscas de conteúdo e do processamento. |
 | `99 System/Bases/` | Consultas recomendadas e futuras visualizações do recurso Bases. |
+| `99 System/Skills/` | Repositório oficial das skills pessoais do Claude Code, ligadas a `~/.claude/skills/`; excluídas de buscas de conteúdo e do processamento. Ver [[99 System/Skills/README]]. |
 
 Na raiz ficam `AGENTS.md` (contrato) e `CLAUDE.md` (ponto de entrada do Claude Code, que apenas importa o contrato).
 
@@ -64,7 +65,7 @@ Uma captura, inclusive de contexto de projeto, pode originar uma Source, uma Kno
 
 ## Papéis
 
-O curador é um papel operacional definido por estes documentos. Não há serviço, processo em segundo plano, agendamento ou automação instalada pelo sistema.
+O curador é um papel operacional definido por estes documentos. Não há serviço, processo em segundo plano ou agendamento. A única automação instalada é a sincronização de skills nos hooks de sessão do Claude Code ([[99 System/AI/setup]]), que não toca no conteúdo das notas.
 
 - **Agente externo**: sessão cujo diretório principal está fora do vault. Trabalha em outro projeto, consulta conhecimento pertinente e publica novas capturas em `00 Inbox/`. Contrato: [[99 System/AI/external-agents]].
 - **Curador**: sessão iniciada na raiz do vault ou em um diretório interno. Segue o protocolo do vault e executa as tarefas de processamento, integração e manutenção solicitadas pelo usuário.

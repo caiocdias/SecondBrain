@@ -61,13 +61,13 @@ Outros tipos não têm subtypes recomendados; introduzi-los somente diante de ne
 
 ## Datas
 
-- Formato `YYYY-MM-DD`, com a data real no fuso local do usuário (por exemplo, `date +%F`).
+- Formato `YYYY-MM-DD`, com a data real no fuso local do usuário (por exemplo, `date +%F`; no PowerShell, `Get-Date -Format yyyy-MM-dd`).
 - Não inventar datas de publicação ou de acesso; metadados desconhecidos ficam ausentes.
 - Em templates, usar `{{date}}` e `{{title}}`, do recurso nativo Templates do Obsidian.
 
 ## `capture_id`
 
-- Obrigatório em toda captura: identificador único gerado no momento da captura, como um UUID v4 em minúsculas (`uuidgen` ou `python3 -c "import uuid; print(uuid.uuid4())"`).
+- Obrigatório em toda captura: identificador único gerado no momento da captura, como um UUID v4 em minúsculas (`uuidgen` ou `python3 -c "import uuid; print(uuid.uuid4())"`; no PowerShell, `[guid]::NewGuid().ToString()`).
 - Identificador curto: os 8 primeiros caracteres, usados no nome do arquivo ([[99 System/AI/ingestion]]).
 - Imutável e preservado durante todo o ciclo, inclusive após o arquivamento. Nunca reutilizar.
 - Captura manual sem `capture_id` recebe um do curador antes do processamento ([[99 System/AI/processing]]).
