@@ -7,6 +7,7 @@ sources:
   - "[[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]]"
   - "[[2026-10-22 - ZenyHotelManager - atualização migração do CLAUDE.md fase 2 - cad5c5ad]]"
   - "[[2026-10-22 - ZenyHotelManager - hook compartilhado do brain - e26f9f6f]]"
+  - "[[2026-10-22 - ZenyHotelManager - atualização roadmaps M5 a M10 no formato superpowers - d76e6324]]"
 ---
 # ZenyHotelManager
 
@@ -25,8 +26,9 @@ Documentação, mensagens ao usuário e commits em pt-BR; código, API e banco e
 ## Estado
 
 - M0 a M4 concluídos. M5 em andamento: E01 a E03 concluídas (até o walk-in, commit `a6c0f03`, 2026-10-22). Histórico completo em [[ZenyHotelManager - Estado por marco]].
-- A referência técnica saiu do `CLAUDE.md` do repositório para as notas abaixo (decisão do usuário, 2026-10-22). Migração concluída em 2026-10-22, ainda sem commit no repositório: `CLAUDE.md` enxuto (59 linhas) e hook ativo em `.claude/settings.json` (`SessionStart` e `SubagentStart`), que roda o `load-brain.py` compartilhado da skill `development-roadmap` com o argumento `ZenyHotelManager` e exige a linha `BRAIN: carregado (ZenyHotelManager)`. Testado numa sessão real e num subagente.
-- Os roadmaps M6 a M10 ainda citam o `CLAUDE.md`; até a sincronização de cada um, vale a regra de mapeamento de `docs/roadmaps/README.md` (regra 3): "seção X do `CLAUDE.md`" é a nota de tema e "atualizar o `CLAUDE.md`" é publicar a captura de atualização.
+- Referência técnica no brain desde 2026-10-22 (decisão do usuário), ainda sem commit no repositório: `CLAUDE.md` enxuto e hook em `.claude/settings.json` (`SessionStart` e `SubagentStart`) com o `load-brain.py` da skill `development-roadmap`, que exige `BRAIN: carregado (ZenyHotelManager)`. Testado em sessão real e em subagente.
+- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers (protocolo, bloco "Second Brain" e um "Prompt de execução" por roadmap); M0 a M4 ficaram no formato antigo. Próxima etapa: M5 E04, pelo prompt de `roadmap-m5-recepcao-fnrh.md`. Nenhum lote rodou ainda no formato novo.
+- Git (decisão do usuário): a execução de roadmap roda na branch `roadmap/<slug>`, com commits por tarefa do superpowers; merge, PR e push só com a decisão do usuário no fim do lote. Fora do roadmap: trabalhar na `main`, commit só a pedido.
 
 ## Notas do projeto
 
@@ -64,12 +66,12 @@ Módulos:
 
 ## Atualização por capturas
 
-Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. Ao fim de cada etapa do roadmap, publique em `00 Inbox/` uma captura "ZenyHotelManager - atualização Mx Ey" com o texto novo ou alterado, dizendo qual nota de tema ele afeta. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub.
+Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. No fechamento de cada etapa que muda algo descrito no brain, inclusive o estado, o orquestrador do lote publica em `00 Inbox/` a captura `ZenyHotelManager - atualização <slug> Eyy` (ex.: `atualização m5-recepcao-fnrh E04`) com o texto novo ou alterado, dizendo qual nota de tema ele afeta. Módulos novos (fnrh, printing, housekeeping, fiscal, pos etc.) ganham nota `ZenyHotelManager - Módulo <nome>`. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub.
 
 ## Próximos passos
 
-- Commit das alterações da migração no repositório (`CLAUDE.md`, `README.md`, `.claude/settings.json` e roadmaps), a cargo do usuário.
-- Na sincronização de cada roadmap de M6 a M10, trocar as menções ao `CLAUDE.md` pelas notas de tema e pela captura de atualização.
+- Commit das alterações no repositório (`CLAUDE.md`, `README.md`, `.claude/settings.json` e roadmaps), a cargo do usuário.
+- Sincronizar cada roadmap de M6 a M10 com o código antes do primeiro lote (regra 2 de `docs/roadmaps/README.md`); divergências já vistas estão nas "Notas para o plano".
 
 ## Perguntas abertas
 
@@ -83,5 +85,6 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f): objetivo do projeto (texto literal do `CLAUDE.md`, linhas 7–13), decisões do usuário sobre a migração, fluxo de atualização por capturas, passos da fase 2 e perguntas abertas. Nota criada a pedido do usuário ("vamos criar um projeto no /second-brain").
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Estado por marco - 00f871ac]] (capture_id: 00f871ac-9fce-4291-9d71-47a67a2f69b7): resumo do curador do estado atual; o texto completo está em [[ZenyHotelManager - Estado por marco]].
-- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização migração do CLAUDE.md fase 2 - cad5c5ad]] (capture_id: cad5c5ad-9bf0-4d98-890f-641ae8d1f7ca): fase 2 concluída (`CLAUDE.md` enxuto, hook ativo e testado em sessão e subagente, regra de mapeamento nos roadmaps); Estado, Próximos passos e Perguntas abertas atualizados.
-- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - hook compartilhado do brain - e26f9f6f]] (capture_id: e26f9f6f-f541-4339-bc7d-b74de3e5599f): troca para o `load-brain.py` compartilhado da skill `development-roadmap` e a linha `BRAIN: carregado (ZenyHotelManager)`; retirada a pergunta aberta sobre a skill, já atendida.
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização migração do CLAUDE.md fase 2 - cad5c5ad]] (capture_id: cad5c5ad-9bf0-4d98-890f-641ae8d1f7ca): fase 2 concluída e testada (Estado, Próximos passos, Perguntas abertas).
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - hook compartilhado do brain - e26f9f6f]] (capture_id: e26f9f6f-f541-4339-bc7d-b74de3e5599f): hook compartilhado da skill `development-roadmap` e linha `BRAIN: carregado`.
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização roadmaps M5 a M10 no formato superpowers - d76e6324]] (capture_id: d76e6324-2c69-45d7-b242-d274e8c8ac2e): roadmaps M5 a M10 no formato superpowers, decisões sobre branch e nome das capturas, próxima etapa.
