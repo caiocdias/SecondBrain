@@ -6,9 +6,11 @@ Documento principal sobre como preparar um computador (Linux, macOS ou Windows) 
 
 | Onde | O quê |
 |---|---|
-| Vault (Git) | Contrato e protocolos; skills pessoais em `99 System/Skills/`; skills de projeto em `.claude/skills/`; configuração do Obsidian; scripts de sincronização (`sync-skills.sh` e `sync-skills.ps1`). |
-| Máquina, fora do Git | Bloco *Second Brain* em `~/.claude/CLAUDE.md`; leitura do vault e hooks em `~/.claude/settings.json`; links em `~/.claude/skills/`. Reconstruídos por este procedimento. |
-| Conta do usuário | Skills sincronizadas do claude.ai (`~/.claude/skills/synced/`, voltam após o login); plugins de marketplace (reinstalar com `/plugin`); memória automática do Claude Code. Não fazem parte do vault. |
+| Vault (Git) | Contrato e protocolos; skills pessoais e plugins locais em `99 System/Skills/`; registro dos plugins de marketplace em `99 System/Skills/plugins.txt`; skills de projeto em `.claude/skills/`; configuração do Obsidian; scripts de sincronização (`sync-skills.sh` e `sync-skills.ps1`). |
+| Máquina, fora do Git | Bloco *Second Brain* em `~/.claude/CLAUDE.md`; leitura do vault e hooks em `~/.claude/settings.json`; links em `~/.claude/skills/`; arquivos dos plugins instalados (`~/.claude/plugins/`). Reconstruídos por este procedimento. |
+| Conta do usuário | Skills e plugins sincronizados do claude.ai (`~/.claude/skills/synced/` e `~/.claude/plugins/synced/`, voltam após o login); memória automática do Claude Code. Não fazem parte do vault. |
+
+O `plugins.txt` registra quais plugins usar, não os arquivos deles: o Claude Code baixa e atualiza cada plugin a partir do marketplace. Plugins instalados no escopo de usuário entram no registro automaticamente pelo script de sincronização; o registro só cresce, e remover um plugin dele é decisão manual do usuário.
 
 `~/.claude` significa `$CLAUDE_CONFIG_DIR`, se definida; senão `~/.claude` no Linux e no macOS e `%USERPROFILE%\.claude` no Windows.
 
@@ -21,11 +23,12 @@ Documento principal sobre como preparar um computador (Linux, macOS ou Windows) 
 
 ## Detecção
 
-A máquina está configurada quando os três itens existem e apontam para o caminho atual do vault:
+A máquina está configurada quando os itens abaixo existem e apontam para o caminho atual do vault:
 
 1. `~/.claude/CLAUDE.md` contém o bloco entre `<!-- second-brain:begin -->` e `<!-- second-brain:end -->`.
 2. `~/.claude/settings.json` tem o vault em `permissions.additionalDirectories` e hooks `SessionStart` e `SessionEnd` que executam o script de sincronização deste vault.
 3. Cada skill de `99 System/Skills/` aparece em `~/.claude/skills/` como link para o vault.
+4. Cada plugin de `99 System/Skills/plugins.txt` aparece em `claude plugin list`.
 
 Se algum item faltar ou apontar para outro caminho (vault movido), a sessão curadora informa o usuário e executa o procedimento após confirmação.
 
@@ -49,7 +52,7 @@ Meu Second Brain pessoal é um vault Obsidian em Markdown em `<VAULT>`. Guarda c
 
 - Quando eu falar em "meu brain", "Second Brain", salvar, registrar ou capturar algo, consultar meu conhecimento ou usar minha metodologia, use a skill `second-brain`.
 - Em sessões iniciadas fora do vault você é agente externo: pode ler notas pertinentes e só cria capturas novas em `<VAULT>/00 Inbox/`. Não processa a Inbox nem altera notas existentes. Contrato: `<VAULT>/AGENTS.md` e `<VAULT>/99 System/AI/external-agents.md`.
-- Skills pessoais vivem em `<VAULT>/99 System/Skills/`. Crie ou instale novas skills ali (ou em `~/.claude/skills/`, de onde são movidas para o vault automaticamente).
+- Skills pessoais vivem em `<VAULT>/99 System/Skills/`. Crie ou instale novas skills ali (ou em `~/.claude/skills/`, de onde são movidas para o vault automaticamente). Plugins instalados no escopo de usuário ficam registrados em `<VAULT>/99 System/Skills/plugins.txt`.
 - Configuração desta máquina: `<VAULT>/99 System/AI/setup.md`.
 <!-- second-brain:end -->
 ```
@@ -97,23 +100,33 @@ Validar o JSON depois de editar (`jq . ~/.claude/settings.json` ou `Get-Content 
 - Linux e macOS: `chmod +x "<VAULT>/99 System/Skills/sync-skills.sh"` e executar o script.
 - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<VAULT>\99 System\Skills\sync-skills.ps1"`.
 
-### 5. Verificar
+### 5. Instalar os plugins registrados
+
+Ler `99 System/Skills/plugins.txt` (ignorar linhas com `#`). Cada linha tem `<plugin>@<marketplace> <origem do marketplace>`. Comparar com `claude plugin list --json` e `claude plugin marketplace list` e, para cada plugin que falte:
+
+1. Se o marketplace não estiver configurado: `claude plugin marketplace add <origem>`.
+2. `claude plugin install <plugin>@<marketplace>` (escopo de usuário, o padrão).
+
+Se a instalação pedir confirmação de um comando declarado pelo marketplace ou opções de configuração (`--config`), mostrar ao usuário e só prosseguir com a resposta dele; nunca passar `-y` por conta própria. Origem que seja um caminho local de outra máquina não funciona aqui: relatar e pedir ao usuário a origem correta. Falha em um plugin não interrompe os demais.
+
+### 6. Verificar
 
 - Cada skill de `99 System/Skills/` aparece em `~/.claude/skills/` como link para o vault, e `~/.claude/skills/synced/` não foi alterado.
+- Cada plugin de `plugins.txt` aparece em `claude plugin list`.
 - Opcional: em outro diretório, `claude -p "liste os nomes das skills disponíveis"` deve incluir as skills do vault.
 - Se `git config user.name` ou `user.email` estiverem vazios, informar o usuário; não configurar a identidade sem pedido.
 
-### 6. Relatar
+### 7. Relatar
 
-Informar o que foi criado ou alterado, que os hooks valem a partir da próxima sessão e o que fica com o usuário: abrir a pasta como vault no Obsidian (opcional), reinstalar plugins de marketplace e conferir que as skills do claude.ai voltaram após o login.
+Informar o que foi criado ou alterado, quais plugins foram instalados ou falharam, que hooks e plugins valem a partir da próxima sessão e o que fica com o usuário: abrir a pasta como vault no Obsidian (opcional) e conferir que as skills do claude.ai voltaram após o login.
 
 ## Vault movido ou máquina desativada
 
 - **Vault movido**: repetir o procedimento, que substitui os caminhos antigos. Apagar de `~/.claude/skills/` os links que apontam para o caminho antigo; o script só limpa links do vault atual.
-- **Desativar**: remover o bloco do `CLAUDE.md`, as entradas de `settings.json` e os links em `~/.claude/skills/`. As skills continuam no vault.
+- **Desativar**: remover o bloco do `CLAUDE.md`, as entradas de `settings.json` e os links em `~/.claude/skills/`; desinstalar plugins é opcional. Skills e registro de plugins continuam no vault.
 
 ## Limites
 
-- Alterar apenas os itens descritos aqui; não mexer em outras configurações, outras skills, `synced/` ou plugins.
+- Alterar apenas os itens descritos aqui; não mexer em outras configurações, outras skills ou `synced/`, e não instalar plugins que não estejam em `plugins.txt`.
 - Nunca registrar credenciais no vault nem nos arquivos de configuração.
 - Não fazer push.

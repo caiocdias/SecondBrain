@@ -1,12 +1,15 @@
-﻿# Mantém ~/.claude/skills/ apontando para as skills versionadas neste diretório do vault.
+﻿# Mantém ~/.claude/skills/ apontando para as skills versionadas neste diretório do vault
+# e registra em plugins.txt os plugins instalados pelo usuário.
 # Versão Windows de sync-skills.sh, com as mesmas regras; usa junctions, que não exigem administrador.
 # Executado pelos hooks SessionStart e SessionEnd de ~/.claude/settings.json; pode ser rodado à mão:
 #   powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<vault>\99 System\Skills\sync-skills.ps1"
 #
-# 1. Skill nova instalada ou criada diretamente em ~/.claude/skills/ é movida para cá e
-#    substituída por um link.
+# 1. Skill nova (ou plugin local criado com `claude plugin init`) instalada ou criada diretamente
+#    em ~/.claude/skills/ é movida para cá e substituída por um link.
 # 2. Skill criada aqui sem link em ~/.claude/skills/ ganha o link.
 # 3. Links para skills removidas daqui são apagados.
+# 4. Plugin de marketplace instalado no escopo de usuário e ausente de plugins.txt é acrescentado.
+#    O registro só cresce: remoções são feitas à mão.
 #
 # ~/.claude/skills/synced/ (skills sincronizadas do claude.ai) é gerenciado pelo Claude Code e fica de fora.
 
@@ -16,9 +19,16 @@ $ErrorActionPreference = 'Continue'
 $VaultSkills = $PSScriptRoot
 $ConfigDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
 $UserSkills = Join-Path $ConfigDir 'skills'
+$PluginsFile = Join-Path $VaultSkills 'plugins.txt'
 $OnWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
+$Utf8 = New-Object Text.UTF8Encoding $false
 
 function Test-Link($item) { [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint) }
+
+function Test-SkillDir($path) {
+  (Test-Path -LiteralPath (Join-Path $path 'SKILL.md')) -or
+  (Test-Path -LiteralPath (Join-Path $path '.claude-plugin\plugin.json'))
+}
 
 function Get-LinkTarget($item) {
   $target = @($item.Target)[0]
@@ -39,16 +49,22 @@ function Remove-SkillLink($link) {
   }
 }
 
+function Read-Json($path) {
+  if (-not (Test-Path -LiteralPath $path)) { return $null }
+  try { Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $null }
+}
+
 New-Item -ItemType Directory -Force -Path $UserSkills | Out-Null
 $moved = @()
 $linked = @()
 $conflicts = @()
 $failed = @()
+$registered = @()
 
 foreach ($item in Get-ChildItem -LiteralPath $UserSkills -Directory -Force) {
   if ($item.Name -eq 'synced' -or $item.Name.StartsWith('.')) { continue }
   if (Test-Link $item) { continue }
-  if (-not (Test-Path -LiteralPath (Join-Path $item.FullName 'SKILL.md'))) { continue }
+  if (-not (Test-SkillDir $item.FullName)) { continue }
   $dest = Join-Path $VaultSkills $item.Name
   if (Test-Path -LiteralPath $dest) { $conflicts += $item.Name; continue }
   try {
@@ -67,7 +83,7 @@ foreach ($item in Get-ChildItem -LiteralPath $UserSkills -Directory -Force) {
 }
 
 foreach ($dir in Get-ChildItem -LiteralPath $VaultSkills -Directory) {
-  if (-not (Test-Path -LiteralPath (Join-Path $dir.FullName 'SKILL.md'))) { continue }
+  if (-not (Test-SkillDir $dir.FullName)) { continue }
   $link = Join-Path $UserSkills $dir.Name
   $existing = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
   if ($existing) {
@@ -86,9 +102,42 @@ foreach ($item in Get-ChildItem -LiteralPath $UserSkills -Force) {
   }
 }
 
+$installed = Read-Json (Join-Path $ConfigDir 'plugins\installed_plugins.json')
+$known = Read-Json (Join-Path $ConfigDir 'plugins\known_marketplaces.json')
+if ($installed -and $installed.plugins) {
+  $listed = @()
+  if (Test-Path -LiteralPath $PluginsFile) {
+    $listed = @(Get-Content -LiteralPath $PluginsFile -Encoding UTF8 |
+      Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { ($_ -split ' ', 2)[0] })
+  }
+  foreach ($prop in $installed.plugins.PSObject.Properties) {
+    $id = $prop.Name
+    if ($id.EndsWith('@skills-dir') -or $listed -contains $id) { continue }
+    if (-not (@($prop.Value) | Where-Object { $_.scope -eq 'user' })) { continue }
+    $origin = ''
+    $marketplace = ($id -split '@')[-1]
+    if ($known -and $known.PSObject.Properties[$marketplace]) {
+      $source = $known.$marketplace.source
+      foreach ($field in 'repo', 'url', 'path', 'package') {
+        if ($source.$field) { $origin = $source.$field; break }
+      }
+    }
+    if (-not (Test-Path -LiteralPath $PluginsFile)) {
+      $header = "# Plugins do Claude Code registrados no Second Brain (escopo de usuário).`n" +
+        "# Uma linha por plugin: <plugin>@<marketplace> <origem do marketplace>.`n" +
+        "# sync-skills acrescenta plugins novos; remoções são manuais. Reinstalação: 99 System/AI/setup.md.`n"
+      [IO.File]::WriteAllText($PluginsFile, $header, $Utf8)
+    }
+    [IO.File]::AppendAllText($PluginsFile, ("$id $origin".TrimEnd() + "`n"), $Utf8)
+    $listed += $id
+    $registered += $id
+  }
+}
+
 $msg = @()
 if ($moved) { $msg += "Skills movidas para o Second Brain: $($moved -join ' ')." }
 if ($linked) { $msg += "Skills do Second Brain ativadas: $($linked -join ' ')." }
+if ($registered) { $msg += "Plugins registrados no Second Brain: $($registered -join ' ')." }
 if ($conflicts) { $msg += "Conflito de nome entre ~/.claude/skills e o vault (resolver à mão): $($conflicts -join ' ')." }
 if ($failed) { $msg += "Falha ao sincronizar: $($failed -join ' ')." }
 if ($msg) { @{ systemMessage = ($msg -join ' ') } | ConvertTo-Json -Compress }
