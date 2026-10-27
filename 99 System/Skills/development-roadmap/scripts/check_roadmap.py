@@ -33,6 +33,7 @@ REQUIRED_SECTIONS = {
 }
 
 # Skills do superpowers que o prompt de execução precisa acionar.
+SOULS = ("orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca")
 PROMPT_SKILLS = [
     "superpowers:using-git-worktrees",
     "superpowers:writing-plans",
@@ -275,8 +276,8 @@ def main():
             rep.warn(protocol[0], "o protocolo de execução não menciona o superpowers")
         if "roadmap/" not in body:
             rep.warn(protocol[0], "o protocolo de execução não nomeia a branch roadmap/<slug>")
-        if "soul" not in body:
-            rep.warn(protocol[0], "o protocolo de execução não traz a tabela de papéis com a nota sobre Souls")
+        if not all(s in body for s in SOULS):
+            rep.warn(protocol[0], "o protocolo de execução não usa as souls (orquestrador-etapa, desenvolvedor, testador, revisor-seguranca)")
     prompt_heads = [i for i, h in headings.items() if "prompt de execu" in h or "execution prompt" in h]
     if not prompt_heads:
         rep.error(1, "seção '## Prompt de execução' ausente no cabeçalho")
