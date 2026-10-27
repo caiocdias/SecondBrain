@@ -190,10 +190,10 @@ O conteúdo obrigatório do corpo vem da DESIGN §4 e §5:
 
 Frontmatter:
 - `name: revisor-seguranca`
-- `tools: Read, Grep, Glob, Bash, WebFetch, WebSearch`
+- `tools: Read, Grep, Glob, WebFetch, WebSearch` (sem Bash — ruling da Task 1: o papel `revisor` do guard bloqueia todo Bash)
 - `model: inherit`
 - `color: red`
-- hook `PreToolUse` com matcher `"Bash"` → `soul_guard.py revisor`
+- hook `PreToolUse` com matcher `"Bash"` → `soul_guard.py revisor` (defesa em profundidade: bloqueia qualquer Bash)
 - `description`: deixa claro que serve tanto para revisor de tarefa (prompt task-reviewer ou re-review do superpowers) quanto para a revisão final do branch (prompt `code-reviewer.md` do superpowers).
 
 O conteúdo obrigatório do corpo vem da DESIGN §4, §5 e §6:
@@ -204,7 +204,7 @@ O conteúdo obrigatório do corpo vem da DESIGN §4, §5 e §6:
 - não aprova sem evidência;
 - nunca instala nada.
 
-Inclui uma tabela curta stack → scanner → URL oficial de instalação. Mínimo: multi-ecossistema (`osv-scanner`), npm (`npm audit`), Python (`pip-audit`) e JVM/Gradle.
+A revisora não executa nada: julga as saídas de scanner e de `check_test_integrity.py` que o orquestrador anexa ao pacote. Sem saída de scanner no pacote da revisão final → bloqueia e recomenda. Inclui uma tabela curta stack → scanner (com o comando que o orquestrador deve rodar) → URL oficial de instalação. Mínimo: multi-ecossistema (`osv-scanner`), npm (`npm audit`), Python (`pip-audit`) e JVM/Gradle.
 
 - [ ] **Step 1:** acrescentar a entrada em `SOULS` e rodar a suíte. Esperado: FAIL.
 - [ ] **Step 2: Conferir as URLs.** Abrir cada URL da tabela com WebFetch e confirmar que é a página oficial de instalação da ferramenta. Registrar no relatório da tarefa a URL e o título de cada página. URL que não confirmar sai da tabela.
@@ -233,7 +233,8 @@ O corpo é o único lugar com as regras de encaixe (DESIGN §5) e precisa funcio
   - depois de cada tarefa e depois de cada correção que mexe em produção → `testador`;
   - em seguida, roda `python3 -I "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/agents/second-brain-souls/scripts/check_test_integrity.py" --base <commit anterior à tarefa>` e anexa a saída ao pacote de revisão;
   - task-reviewer e re-review → `revisor-seguranca`;
-  - revisão final (prompt `code-reviewer.md`) → `revisor-seguranca`, com o modelo mais capaz;
+  - revisão final (prompt `code-reviewer.md`) → `revisor-seguranca`, com o modelo mais capaz; antes, o orquestrador roda o scanner de dependências do stack (tabela da soul `revisor-seguranca`) e anexa a saída ao pacote; sem scanner instalado, anexa essa ausência e a revisora bloqueia;
+  - a revisora não tem Bash: tudo o que ela precisa ver (diff, saídas de scanner, de testes e da verificação mecânica) vai como arquivo no pacote;
   - captura no brain → `brain-escriba`.
 - **teste vermelho do testador** (DESIGN §5): volta ao desenvolvedor, conta no limite de 5 rodadas, e a revisão só acontece com a suíte verde.
 - não escreve código nem teste;
