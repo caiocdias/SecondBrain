@@ -258,6 +258,16 @@ class CheckTestIntegrityTest(unittest.TestCase):
         code, out = self.repo.check(self.base)
         self.assertEqual(code, 1, out)
 
+    def test_gitattributes_nao_cega(self):
+        mid = self.with_two_tests()
+        self.repo.write(".gitattributes", "* -diff\n")
+        self.repo.write("tests/test_a.py", "def test_x(): assert a()\n")
+        self.repo.commit("dev", "desenvolvedor")
+        code, out = self.repo.check(mid)
+        self.assertEqual(code, 1, out)
+        self.assertIn("[TESTE_REMOVIDO]", out)
+        self.assertIn("[GITATTRIBUTES_ALTERADO]", out)
+
 
 if __name__ == "__main__":
     unittest.main()

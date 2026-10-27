@@ -75,7 +75,7 @@ def diff_lines(repo: str, base: str, head: str):
     for path in names.split("\0"):
         if not path or not is_test_path(path):
             continue
-        out = git(repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv",
+        out = git(repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--text",
                   "--src-prefix=a/", "--dst-prefix=b/", "--no-renames", "-U0",
                   f"{base}..{head}", "--", path)
         in_hunk = False
@@ -117,6 +117,8 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
     for sha, souls in commits(repo, base, head):
         short = sha[:7]
         files = changed_files(repo, sha)
+        if any(f.rsplit("/", 1)[-1] == ".gitattributes" for f in files):
+            warnings.append(f"[GITATTRIBUTES_ALTERADO] {short} .gitattributes: pode alterar como o git exibe diffs")
         if not souls:
             warnings.append(f"[SEM_SOUL] {short} -: commit sem trailer Soul:")
         if len(souls) > 1 or any(s not in KNOWN_SOULS for s in souls):
