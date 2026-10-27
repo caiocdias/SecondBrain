@@ -34,16 +34,19 @@ ESCRIBA_BRANCH_FLAGS = {"--list", "-a", "-r", "--show-current", "-v", "-vv"}
 ESCRIBA_META = (">", "<", "&", ";", "|", "`", "$(", "(", ")", "\n", "\r")
 UUID_CODE = re.compile(r"^\s*import uuid\s*;\s*print\(uuid\.uuid4\(\)\)\s*$")
 
-REVISOR_GIT = {"commit", "push", "reset", "checkout", "switch", "merge", "rebase", "restore",
-               "clean", "stash", "tag", "am", "apply", "cherry-pick"}
-REVISOR_WORDS = {"rm", "mv", "tee", "cp"}
-INSTALLERS = {"npm": {"install", "add", "i"}, "pnpm": {"install", "add", "i"},
-              "yarn": {"install", "add", "i"}, "pip": {"install"}, "pip3": {"install"},
-              "brew": {"install"}, "apt": {"install"}, "apt-get": {"install"}, "snap": {"install"},
-              "go": {"install"}, "cargo": {"install"}, "gem": {"install"}}
-FIND_BAD = {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+REVISOR_TOOLS = {"cat", "head", "tail", "less", "grep", "rg", "ls", "find", "wc", "sort", "uniq", "cut",
+                 "tr", "diff", "file", "stat", "tree", "pwd", "date", "echo", "printf", "sha256sum",
+                 "md5sum", "jq", "which", "basename", "dirname", "realpath", "true"}
+REVISOR_GIT_OK = {"log", "show", "diff", "status", "rev-parse", "blame", "ls-files", "ls-tree", "grep",
+                  "merge-base", "describe", "shortlog", "cat-file", "branch"}
+FIND_BAD = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf", "-fls"}
+GRADLE_TASKS = {"dependencies", "buildEnvironment", "dependencyCheckAnalyze"}
+MVN_GOALS = {"dependency:tree", "org.owasp:dependency-check-maven:check"}
+REVISOR_FAMILIES = ("leitura (cat, grep, rg, ls, find, jq...), git de leitura (log, show, diff, status...), "
+                    "auditoria de dependências (osv-scanner, pip-audit, npm audit, dependency-check, "
+                    "gradle dependencies, mvn dependency:tree), curl/wget só para stdout e "
+                    "check_test_integrity.py")
 SAFE_REDIRECTS = re.compile(r"\d*>&\d+|&?\d*>>?\s*/dev/null")
-PIPE_TO_SHELL = re.compile(r"\b(?:curl|wget)\b[^|]*\|\s*(?:sudo\s+)?(?:sh|bash)\b")
 SHORT_RECURSIVE = re.compile(r"^-[A-Za-z]*[rR][A-Za-z]*$")
 SHORT_FORCE = re.compile(r"^-[A-Za-z]*f[A-Za-z]*$")
 
@@ -145,37 +148,125 @@ def _decide_escriba_bash(command: str):
             "Para escrever, use Write em 00 Inbox/.")
 
 
-def _revisor_block(command: str, segs):
-    stripped = SAFE_REDIRECTS.sub(" ", command)
-    if ">" in stripped:
+def _revisor_segments(command: str):
+    """Segmentos separados por | || && ; & e newline. None se houver subshell/parênteses.
+    `<` e o alvo seguinte são descartados (leitura). Redirecionamentos seguros já removidos."""
+    text = SAFE_REDIRECTS.sub(" ", command).replace("\n", " ; ")
+    try:
+        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        toks = list(lex)
+    except ValueError:
+        return None
+    segs, cur, skip = [], [], False
+    for t in toks:
+        if skip:
+            skip = False
+            continue
+        if t and all(c in "()" for c in t):
+            return None
+        if t and all(c in ";&|" for c in t):
+            if cur:
+                segs.append(cur)
+            cur = []
+        elif t and all(c == "<" for c in t):
+            skip = True
+        else:
+            cur.append(t)
+    if cur:
+        segs.append(cur)
+    return segs
+
+
+def _revisor_git_ok(seg) -> bool:
+    j = 1
+    while j < len(seg) and seg[j].startswith("-"):
+        if seg[j] == "-c":
+            return False
+        j += 2 if seg[j] == "-C" else 1
+    if j >= len(seg) or seg[j] not in REVISOR_GIT_OK:
+        return False
+    sub, args = seg[j], seg[j + 1:]
+    if any(a.startswith("--output") for a in args):
+        return False
+    if sub == "grep" and any(a.startswith("-O") or a.startswith("--open-files-in-pager") for a in args):
+        return False
+    if sub == "branch" and not set(args) <= ESCRIBA_BRANCH_FLAGS:
+        return False
+    return True
+
+
+def _revisor_net_ok(name: str, seg) -> bool:
+    args = seg[1:]
+    if name == "curl":
+        return not any(
+            a in ("--output", "--remote-name", "--remote-name-all", "-T", "--upload-file")
+            or a.startswith("--output") or (re.match(r"^-[A-Za-z]*[oOT]", a) and not a.startswith("--"))
+            for a in args)
+    return (any(re.match(r"^-[A-Za-z]*O-$", a) or a == "--output-document=-" for a in args)
+            or any(x == "-O" and y == "-" for x, y in zip(args, args[1:])))
+
+
+def _revisor_segment_ok(seg) -> bool:
+    cmd = seg[0]
+    name = _base(cmd)
+    args = seg[1:]
+    pos = [a for a in args if not a.startswith("-")]
+    if "/" in cmd and name != "gradlew" and name != "python3":
+        return False
+    if name in REVISOR_TOOLS:
+        if any(a.startswith("--output") for a in args):
+            return False
+        if name == "find" and any(a in FIND_BAD for a in args):
+            return False
+        if name in ("sort", "tree") and any(re.match(r"^-[A-Za-z]*o", a) for a in args if not a.startswith("--")):
+            return False
+        if name == "uniq" and len(pos) > 1:
+            return False
+        if name == "file" and "-C" in args:
+            return False
+        if name == "date" and any(a in ("-s", "--set") or a.startswith("--set=") for a in args):
+            return False
+        if name == "rg" and any(a.startswith("--pre") for a in args):
+            return False
+        return True
+    if name == "git":
+        return _revisor_git_ok(seg)
+    if name in ("osv-scanner", "pip-audit", "dependency-check"):
+        if "fix" in args or "--fix" in args or any(a.startswith("--output") for a in args):
+            return False
+        return not (name == "pip-audit" and "-o" in args)
+    if name in ("npm", "pnpm", "yarn"):
+        sub = pos[0] if pos else None
+        ok = {"audit", "ls", "view", "outdated"} if name == "npm" else {"audit"}
+        return sub in ok and "fix" not in args
+    if name in ("pip", "pip3"):
+        return bool(pos) and pos[0] in {"show", "list"}
+    if name in ("gradle", "gradlew"):
+        return (len(pos) == 1 and pos[0] in GRADLE_TASKS
+                and not any(a == "-I" or a.startswith("--init-script") for a in args))
+    if name == "mvn":
+        return len(pos) == 1 and pos[0] in MVN_GOALS
+    if name in ("curl", "wget"):
+        return _revisor_net_ok(name, seg)
+    if name == "python3":
+        return len(args) >= 2 and args[0] == "-I" and _base(args[1]) == "check_test_integrity.py"
+    return False
+
+
+def _revisor_block(command: str):
+    """Allowlist: devolve o motivo do bloqueio ou None. Atribuições `VAR=x cmd` são
+    bloqueadas (o primeiro token deve ser um comando permitido)."""
+    if any(m in command for m in ("`", "$(", "<(", ">(")):
+        return "substituição de comando ou de processo"
+    if ">" in SAFE_REDIRECTS.sub(" ", command):
         return "redirecionamento de escrita"
-    if PIPE_TO_SHELL.search(command):
-        return "curl/wget com pipe para shell"
-    for sub, _ in _git_calls(segs):
-        if sub in REVISOR_GIT:
-            return f"git {sub}"
+    segs = _revisor_segments(command)
+    if segs is None:
+        return "subshell ou comando malformado"
     for seg in segs:
-        names = [_base(t) for t in seg]
-        for w in REVISOR_WORDS:
-            if w in names:
-                return w
-        if "sed" in names and any(re.match(r"^-[A-Za-z]*i[A-Za-z]*$|^--in-place", t) for t in seg):
-            return "sed -i"
-        if "find" in names and any(t in FIND_BAD for t in seg):
-            return "find com -delete/-exec/-ok"
-        if "curl" in names and any(
-                t in ("--output", "--remote-name", "--remote-name-all") or t.startswith("--output")
-                or re.match(r"^-[A-Za-z]*[oO]", t) and not t.startswith("--") for t in seg):
-            return "curl gravando em arquivo"
-        if "wget" in names:
-            stdout = any(re.match(r"^-[A-Za-z]*O-$", t) or t == "--output-document=-" for t in seg) or any(
-                a == "-O" and b == "-" for a, b in zip(seg, seg[1:]))
-            if not stdout:
-                return "wget que grava em arquivo (use -O -)"
-        for i, t in enumerate(seg):
-            verbs = INSTALLERS.get(_base(t))
-            if verbs and _first_arg(seg, i) in verbs:
-                return "instalação de pacotes"
+        if not _revisor_segment_ok(seg):
+            return f"comando não permitido ({' '.join(seg[:3])})"
     return None
 
 
@@ -205,10 +296,10 @@ def _decide_bash(role: str, command: str):
     if role != "orquestrador" and any(sub == "push" for sub, _ in _git_calls(segs)):
         return f"Trava do {role}: git push não é permitido. Deixe o push para o usuário."
     if role == "revisor":
-        what = _revisor_block(command, segs)
+        what = _revisor_block(command)
         if what:
-            return (f"Trava do revisor: {what} é bloqueado. O revisor só lê e analisa; "
-                    "relate o achado no relatório.")
+            return (f"Trava do revisor: a revisora é somente leitura; bloqueado: {what}. "
+                    f"Permitido: {REVISOR_FAMILIES}. Relate o achado no relatório.")
     if role == "curador":
         what = _curador_block(segs)
         if what:
