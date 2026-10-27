@@ -205,6 +205,35 @@ class FinalReviewTest(unittest.TestCase):
         for p in ["src/A.kt", ".claude/agents/x.md", ".claude/.superpowers/x", "a/second-brain-souls/x.md"]:
             self.assertFalse(soul_guard.orquestrador_editavel(p), p)
 
+    def test_orquestrador_em_worktree_nativo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            wt = repo / ".claude" / "worktrees" / "roadmap-x"
+            (repo / ".claude" / "agents").mkdir(parents=True)
+            wt.mkdir(parents=True)
+            for rel in ["docs/superpowers/plans/p.md", ".superpowers/sdd/ledger.json", "ROADMAP.md"]:
+                for tool in ("Write", "Edit"):
+                    self.assertIsNone(decide("orquestrador", tool, {"file_path": str(wt / rel)}, str(wt), VAULT), rel)
+                self.assertIsNone(decide("orquestrador", "Write", {"file_path": rel}, str(wt), VAULT), rel)
+            for p in [str(wt / ".claude" / "agents" / "x.md"), ".claude/agents/x.md",
+                      "../../agents/testador.md", str(repo / ".claude" / "agents" / "testador.md"),
+                      str(wt / "src" / "A.kt")]:
+                self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": p}, str(wt), VAULT), p)
+            link = wt / "atalho"
+            link.symlink_to(soul_guard.souls_dir())
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": str(link / "testador.md")}, str(wt), VAULT))
+            (wt / "docs2").symlink_to(repo / ".claude")
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": "docs2/agents/t.md"}, str(wt), VAULT))
+        self.assertTrue(soul_guard.orquestrador_editavel("/r/.claude/worktrees/x/docs/p.md", "/r/.claude/worktrees/x"))
+        self.assertFalse(soul_guard.orquestrador_editavel("/r/.claude/agents/p.md", "/r/.claude/worktrees/x"))
+
+    def test_testador_grava_relatorio_em_superpowers(self):
+        cwd = "/r"
+        for p in [".superpowers/sdd/PLAN/task-1-tester-report.md", "/r/.superpowers/x.md"]:
+            self.assertIsNone(decide("testador", "Write", {"file_path": p}, cwd, VAULT), p)
+        for p in [".superpowers/x.py", "src/main/A.kt", "docs/relatorio.md", "/r/.claude/x.md"]:
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": p}, cwd, VAULT), p)
+
     def test_escriba_uuid_exige_isolado(self):
         self.assertIsNone(self.bash("escriba", 'python3 -I -c "import uuid; print(uuid.uuid4())"'))
         for c in ['python3 -c "import uuid; print(uuid.uuid4())"',

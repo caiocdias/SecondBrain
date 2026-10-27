@@ -66,10 +66,27 @@ def souls_dir() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def orquestrador_editavel(path: str) -> bool:
+def _parts_from_cwd(path: str, cwd: str | None) -> tuple[str, ...]:
+    """Segmentos do caminho relativos a `cwd` quando está dentro dele (worktree nativo em
+    `<repo>/.claude/worktrees/<nome>/` é o cwd legítimo); fora dele, os segmentos absolutos."""
+    if cwd and os.path.isabs(path) and os.path.isabs(cwd):
+        rel = os.path.relpath(path, cwd)
+        if rel != ".." and not rel.startswith(".." + os.sep):
+            return Path(rel).parts
+    return Path(path).parts
+
+
+def testador_editavel(path: str, cwd: str | None = None) -> bool:
+    """Além de testes, o testador grava relatórios `.md` sob `.superpowers/`."""
+    return is_test_path(path, cwd) or (
+        ".superpowers" in _parts_from_cwd(path, cwd) and path.endswith(".md"))
+
+
+def orquestrador_editavel(path: str, cwd: str | None = None) -> bool:
     """O orquestrador só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/`
-    (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`)."""
-    parts = Path(path).parts
+    (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`).
+    Com `cwd`, os segmentos contam relativos a ele quando o caminho está dentro."""
+    parts = _parts_from_cwd(path, cwd)
     if ".claude" in parts or "second-brain-souls" in parts:
         return False
     return path.endswith(".md") or ".superpowers" in parts
@@ -239,15 +256,16 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
     if tool_name in WRITE_TOOLS:
         raw = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
         path = _resolve(raw, cwd) if raw else ""
-        if role == "testador" and not is_test_path(path, cwd):
-            return ("Trava do testador: não altera código de produção. "
-                    "Aponte o problema no relatório em vez de editar.")
+        if role == "testador" and not testador_editavel(path, cwd):
+            return ("Trava do testador: só altera testes e relatórios .md sob .superpowers/; "
+                    "não altera código de produção. Aponte o problema no relatório em vez de editar.")
         if role == "orquestrador":
             real = Path(os.path.realpath(path))
             souls = souls_dir()
             if real == souls or souls in real.parents:
                 return "Trava do orquestrador: não altera as souls."
-            if not orquestrador_editavel(path) or {".claude", "second-brain-souls"} & set(real.parts):
+            real_parts = _parts_from_cwd(str(real), os.path.realpath(cwd) if cwd else None)
+            if not orquestrador_editavel(path, cwd) or {".claude", "second-brain-souls"} & set(real_parts):
                 return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
                         "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor.")
         if role == "escriba":
