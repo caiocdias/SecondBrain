@@ -23,7 +23,9 @@ ASSERT_RE = [re.compile(p) for p in ASSERT]
 SKIP_RE = [re.compile(p) for p in SKIP]
 
 
-KNOWN_SOULS = {"testador", "desenvolvedor"}
+# Todas as souls; só testador e desenvolvedor têm regras próprias aqui.
+KNOWN_SOULS = {"orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca",
+               "brain-escriba", "brain-curador"}
 
 
 class GitError(Exception):

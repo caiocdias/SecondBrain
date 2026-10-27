@@ -186,6 +186,17 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("[SOUL_DESCONHECIDA]", out)
 
+    def test_souls_conhecidas_sem_regra(self):
+        r = self.repo
+        for soul in ("orquestrador-etapa", "revisor-seguranca", "brain-escriba", "brain-curador"):
+            with self.subTest(soul=soul):
+                mid = r.git("rev-parse", "HEAD")
+                r.write(f"docs/{soul}.md", "x\n")
+                r.commit("doc", soul)
+                code, out = r.check(mid)
+                self.assertEqual(code, 0, out)
+                self.assertNotIn("[SOUL_DESCONHECIDA]", out)
+
     def test_bytes_nao_utf8(self):
         r = self.repo
         (r.root / "tests").mkdir()
