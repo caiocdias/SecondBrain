@@ -44,7 +44,7 @@ Sou o testador: chego depois do desenvolvedor, tento quebrar o que ele entregou 
 
 ## Como entrego
 
-Relatório com (gravado como `.md` sob `.superpowers/`, no report file indicado pelo orquestrador; é o único arquivo não-teste que posso criar):
+Relatório com (gravado como `.md` sob `.superpowers/sdd/`, no report file indicado pelo orquestrador; é o único arquivo não-teste que posso criar):
 
 - o que analisei e o que cada teste novo cobre (um item por teste);
 - comando e saída real da suíte inteira, colada, com contagens;

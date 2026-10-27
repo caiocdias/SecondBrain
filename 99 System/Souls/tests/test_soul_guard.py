@@ -224,14 +224,51 @@ class FinalReviewTest(unittest.TestCase):
             self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": str(link / "testador.md")}, str(wt), VAULT))
             (wt / "docs2").symlink_to(repo / ".claude")
             self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": "docs2/agents/t.md"}, str(wt), VAULT))
-        self.assertTrue(soul_guard.orquestrador_editavel("/r/.claude/worktrees/x/docs/p.md", "/r/.claude/worktrees/x"))
-        self.assertFalse(soul_guard.orquestrador_editavel("/r/.claude/agents/p.md", "/r/.claude/worktrees/x"))
+        self.assertTrue(soul_guard.orquestrador_editavel("/r/.claude/worktrees/x/docs/p.md"))
+        self.assertFalse(soul_guard.orquestrador_editavel("/r/.claude/agents/p.md"))
+        self.assertFalse(soul_guard.orquestrador_editavel("/r/.claude/worktrees/x/.claude/agents/p.md"))
+
+    def test_cwd_dentro_de_claude_nao_libera(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            for d in ("agents", "commands", "skills/x"):
+                (repo / ".claude" / d).mkdir(parents=True)
+            (repo / "atalho").symlink_to(repo / ".claude")
+            casos = [(repo / ".claude" / "agents", "testador.md"), (repo / ".claude", "agents/evil.md"),
+                     (repo / ".claude", "commands/evil.md"), (repo / ".claude", "CLAUDE.md"),
+                     (repo / ".claude", "skills/x/SKILL.md"), (repo / "atalho", "agents/evil.md")]
+            for cwd, rel in casos:
+                for tool in ("Write", "Edit"):
+                    self.assertIsNotNone(decide("orquestrador", tool, {"file_path": rel}, str(cwd), VAULT), (cwd, rel))
+                    self.assertIsNotNone(decide("orquestrador", tool, {"file_path": str(cwd / rel)}, str(cwd), VAULT), (cwd, rel))
+
+    def test_testador_confinado(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            (repo / ".claude" / "agents" / "tests").mkdir(parents=True)
+            (repo / "src" / "main").mkdir(parents=True)
+            wt = repo / ".claude" / "worktrees" / "x"
+            (wt / ".superpowers" / "sdd" / "P").mkdir(parents=True)
+            (wt / "src" / "test").mkdir(parents=True)
+            (repo / "lnk").symlink_to(repo / ".claude" / "agents")
+            souls = soul_guard.souls_dir()
+            ruins = [".claude/agents/.superpowers/sdd/x.md", ".claude/agents/tests/x.md", "src/main/.superpowers/A.md",
+                     ".superpowers/x.md", ".superpowers/sdd/x.py", "lnk/tests/x.md",
+                     str(souls / ".superpowers" / "sdd" / "evil.md"), str(souls / "tests" / "x.md")]
+            for p in ruins:
+                self.assertIsNotNone(decide("testador", "Write", {"file_path": str(repo / p) if not os.path.isabs(p) else p}, str(repo), VAULT), p)
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(souls / "tests" / "x.md")}, str(souls), VAULT))
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": "tests/x.md"}, str(repo / ".claude" / "agents"), VAULT))
+            for p in [".superpowers/sdd/P/task-1-tester-report.md", "src/test/A.kt"]:
+                self.assertIsNone(decide("testador", "Write", {"file_path": str(wt / p)}, str(wt), VAULT), p)
+                self.assertIsNone(decide("testador", "Write", {"file_path": p}, str(wt), VAULT), p)
+            self.assertIsNone(decide("testador", "Write", {"file_path": str(repo / ".superpowers/sdd/P/r.md")}, str(repo), VAULT))
 
     def test_testador_grava_relatorio_em_superpowers(self):
         cwd = "/r"
-        for p in [".superpowers/sdd/PLAN/task-1-tester-report.md", "/r/.superpowers/x.md"]:
+        for p in [".superpowers/sdd/PLAN/task-1-tester-report.md", "/r/.superpowers/sdd/x.md"]:
             self.assertIsNone(decide("testador", "Write", {"file_path": p}, cwd, VAULT), p)
-        for p in [".superpowers/x.py", "src/main/A.kt", "docs/relatorio.md", "/r/.claude/x.md"]:
+        for p in [".superpowers/x.py", ".superpowers/x.md", "src/main/A.kt", "docs/relatorio.md", "/r/.claude/x.md"]:
             self.assertIsNotNone(decide("testador", "Write", {"file_path": p}, cwd, VAULT), p)
 
     def test_escriba_uuid_exige_isolado(self):

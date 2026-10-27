@@ -47,10 +47,9 @@ def is_test_path(path: str, cwd: str | None = None) -> bool:
     """Caminho de teste. Se `cwd` for dado e o caminho estiver dentro dele,
     só os segmentos relativos a `cwd` contam (evita /home/x/tests/proj)."""
     p = path
-    if cwd and os.path.isabs(path) and os.path.isabs(cwd):
-        rel = os.path.relpath(path, cwd)
-        if not rel.startswith(".."):
-            p = rel
+    rel = _relative_inside(path, cwd)
+    if rel is not None:
+        p = rel
     p = Path(p)
     if any(part in TEST_DIRS for part in p.parts[:-1]):
         return True
@@ -66,28 +65,53 @@ def souls_dir() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _parts_from_cwd(path: str, cwd: str | None) -> tuple[str, ...]:
-    """Segmentos do caminho relativos a `cwd` quando está dentro dele (worktree nativo em
-    `<repo>/.claude/worktrees/<nome>/` é o cwd legítimo); fora dele, os segmentos absolutos."""
+def _relative_inside(path: str, cwd: str | None) -> str | None:
+    """Caminho relativo a `cwd` se `path` está dentro dele; senão None."""
     if cwd and os.path.isabs(path) and os.path.isabs(cwd):
         rel = os.path.relpath(path, cwd)
         if rel != ".." and not rel.startswith(".." + os.sep):
-            return Path(rel).parts
-    return Path(path).parts
+            return rel
+    return None
+
+
+def _strip_worktree(parts: tuple[str, ...]) -> tuple[str, ...]:
+    """Remove só o prefixo `<...>/.claude/worktrees/<nome>/` (última ocorrência): worktrees
+    nativos do Claude Code vivem sob `.claude/`. O resto do caminho é avaliado como pertence."""
+    for i in range(len(parts) - 3, -1, -1):
+        if parts[i] == ".claude" and parts[i + 1] == "worktrees":
+            return parts[i + 3:]
+    return parts
+
+
+def _protegido(parts: tuple[str, ...]) -> bool:
+    return bool({".claude", "second-brain-souls"} & set(_strip_worktree(parts)))
+
+
+def _dentro_das_souls(real: Path) -> bool:
+    souls = souls_dir()
+    return real == souls or souls in real.parents
 
 
 def testador_editavel(path: str, cwd: str | None = None) -> bool:
-    """Além de testes, o testador grava relatórios `.md` sob `.superpowers/`."""
-    return is_test_path(path, cwd) or (
-        ".superpowers" in _parts_from_cwd(path, cwd) and path.endswith(".md"))
+    """O testador altera testes e grava relatórios `.md` sob `.superpowers/sdd/`; nunca
+    sob `.claude/` (fora do prefixo de worktree) nem nas souls, mesmo em caminho de teste."""
+    real = Path(os.path.realpath(path))
+    if _dentro_das_souls(real) or ".claude" in _strip_worktree(real.parts) \
+            or ".claude" in _strip_worktree(Path(path).parts):
+        return False
+    if is_test_path(path, cwd):
+        return True
+    parts = _strip_worktree(Path(path).parts)
+    return path.endswith(".md") and any(
+        parts[i] == ".superpowers" and parts[i + 1] == "sdd" for i in range(len(parts) - 1))
 
 
-def orquestrador_editavel(path: str, cwd: str | None = None) -> bool:
+def orquestrador_editavel(path: str) -> bool:
     """O orquestrador só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/`
-    (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`).
-    Com `cwd`, os segmentos contam relativos a ele quando o caminho está dentro."""
-    parts = _parts_from_cwd(path, cwd)
-    if ".claude" in parts or "second-brain-souls" in parts:
+    (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`);
+    o prefixo de worktree nativo `.claude/worktrees/<nome>/` não conta como `.claude/`."""
+    parts = Path(path).parts
+    if _protegido(parts):
         return False
     return path.endswith(".md") or ".superpowers" in parts
 
@@ -261,11 +285,9 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
                     "não altera código de produção. Aponte o problema no relatório em vez de editar.")
         if role == "orquestrador":
             real = Path(os.path.realpath(path))
-            souls = souls_dir()
-            if real == souls or souls in real.parents:
+            if _dentro_das_souls(real):
                 return "Trava do orquestrador: não altera as souls."
-            real_parts = _parts_from_cwd(str(real), os.path.realpath(cwd) if cwd else None)
-            if not orquestrador_editavel(path, cwd) or {".claude", "second-brain-souls"} & set(real_parts):
+            if not orquestrador_editavel(path) or _protegido(real.parts):
                 return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
                         "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor.")
         if role == "escriba":
