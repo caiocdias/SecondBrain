@@ -9,6 +9,8 @@ SOULS = {
     "testador": "testador",
     "revisor-seguranca": "revisor",
     "orquestrador-etapa": "orquestrador",
+    "brain-escriba": "escriba",
+    "brain-curador": "curador",
 }
 TITULOS = [
     "## Quem sou",
