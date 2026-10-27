@@ -268,6 +268,51 @@ class FinalReviewTest(unittest.TestCase):
         self.assertFalse(soul_guard.orquestrador_editavel("/h/.superpowers/r/.claude/worktrees/y/src/A.kt"))
         self.assertTrue(soul_guard.orquestrador_editavel("/r/.claude/worktrees/y/.superpowers/l.json"))
 
+    def test_lacunas_pequenas(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            T = Path(os.path.realpath(tmp))
+            proj = T / "x" / ".superpowers" / "proj"
+            (proj / "src" / "main").mkdir(parents=True)
+            sdd = T / "y" / ".superpowers" / "sdd" / "proj"
+            (sdd / "src" / "main").mkdir(parents=True)
+            # 1: ancestral .superpowers fora do cwd não libera
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": str(proj / "src/A.kt")}, str(proj), VAULT))
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(sdd / "src/main/README.md")}, str(sdd), VAULT))
+            # 4: symlinks que levam a produção
+            repo = T / "repo"
+            (repo / "src" / "main").mkdir(parents=True)
+            (repo / "src" / "app").mkdir(parents=True)
+            (repo / ".superpowers").symlink_to(repo / "src" / "main")
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": str(repo / ".superpowers/A.kt")}, str(repo), VAULT))
+            r2 = T / "r2"
+            (r2 / "src" / "main").mkdir(parents=True)
+            (r2 / ".superpowers").mkdir()
+            (r2 / ".superpowers" / "sdd").symlink_to(r2 / "src" / "main")
+            (r2 / "tests").symlink_to(r2 / "src" / "main")
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(r2 / ".superpowers/sdd/R.md")}, str(r2), VAULT))
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(r2 / "tests/A.kt")}, str(r2), VAULT))
+            # 3: caixa
+            low = str(soul_guard.souls_dir()).replace("Souls", "souls")
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": low + "/x.md"}, str(T), VAULT))
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": low + "/tests/test_x.py"}, str(T), VAULT))
+            # 5: CLAUDE_CONFIG_DIR sem .claude no nome
+            cfg = T / "cfgdir"
+            (cfg / "agents").mkdir(parents=True)
+            old = os.environ.get("CLAUDE_CONFIG_DIR")
+            os.environ["CLAUDE_CONFIG_DIR"] = str(cfg)
+            try:
+                for role in ("orquestrador", "testador"):
+                    self.assertIsNotNone(decide(role, "Write", {"file_path": str(cfg / "agents/tests/x.md")}, str(cfg), VAULT), role)
+                self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": "CLAUDE.md"}, str(cfg), VAULT))
+            finally:
+                if old is None:
+                    del os.environ["CLAUDE_CONFIG_DIR"]
+                else:
+                    os.environ["CLAUDE_CONFIG_DIR"] = old
+        # 6
+        msg = decide("testador", "Write", {"file_path": "src/A.kt"}, "/r", VAULT)
+        self.assertIn(".superpowers/sdd/", msg)
+
     def test_testador_confinado(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(os.path.realpath(tmp))

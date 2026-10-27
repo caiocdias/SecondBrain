@@ -74,6 +74,17 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.repo.commit("py", "testador")
         self.assertEqual(self.repo.check(self.base)[0], 1)
 
+    def test_testador_em_teste_sob_claude_e_producao(self):
+        self.dev_baseline()
+        for f in [".claude/agents/tests/x.md", ".claude/agents/test_x.py",
+                  ".claude/agents/.claude/worktrees/y/tests/x.md"]:
+            self.repo.write(f, "x\n")
+            self.repo.commit("t " + f, "testador")
+            code, out = self.repo.check(self.base)
+            self.assertEqual(code, 1, f)
+            self.assertIn("[TESTADOR_PRODUCAO]", out, f)
+            self.repo.git("reset", "-q", "--hard", "HEAD~1")
+
     def test_testador_producao(self):
         self.dev_baseline()
         self.repo.write("src/main/a.py", "def a():\n    return 2\n")

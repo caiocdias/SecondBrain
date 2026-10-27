@@ -77,58 +77,105 @@ def _relative_inside(path: str, cwd: str | None) -> str | None:
 PROTEGIDOS = {".claude", "second-brain-souls"}
 
 
-def _scan(parts: tuple[str, ...]) -> tuple[tuple[str, ...], bool]:
+def _scan3(parts: tuple[str, ...]) -> tuple[tuple[str, ...], bool, bool]:
     """Varre os segmentos da esquerda para a direita (sem diferenciar maiúsculas).
     `.claude/worktrees/<nome>/<algo>` é um worktree nativo do Claude Code e é consumido
     (o que veio antes deixa de contar para o resto); qualquer outro `.claude` ou
-    `second-brain-souls` protege. Devolve (partes restantes, protegido)."""
+    `second-brain-souls` protege. Devolve (partes restantes, protegido, worktree consumido)."""
     low = [x.lower() for x in parts]
     rest: list[str] = []
-    protegido = False
+    protegido = consumido = False
     i = 0
     while i < len(parts):
         if (low[i] == ".claude" and i + 3 < len(parts) and low[i + 1] == "worktrees"
                 and low[i + 2] not in PROTEGIDOS):
-            rest, i = [], i + 3
+            rest, i, consumido = [], i + 3, True
             continue
         if low[i] in PROTEGIDOS:
             protegido = True
         rest.append(parts[i])
         i += 1
-    return tuple(rest), protegido
+    return tuple(rest), protegido, consumido
+
+
+def _scan(parts: tuple[str, ...]) -> tuple[tuple[str, ...], bool]:
+    return _scan3(parts)[:2]
 
 
 def _protegido(parts: tuple[str, ...]) -> bool:
     return _scan(parts)[1]
 
 
-def relatorio_testador(path: str) -> bool:
+def protegido_str(path: str) -> bool:
+    """Caminho (relativo ao repositório) sob `.claude/` ou nas souls, fora de prefixo de worktree."""
+    return _protegido(Path(path).parts)
+
+
+def _partes_de_liberacao(path: str, cwd: str | None) -> tuple[str, ...]:
+    """Segmentos que podem LIBERAR uma escrita (`.superpowers`, `sdd`): os relativos ao cwd
+    (ou depois do prefixo de worktree consumido). Ancestrais absolutos do projeto não contam.
+    Sem `cwd`, o caminho é tomado como já relativo à raiz do repositório."""
+    rel = _relative_inside(path, cwd)
+    if rel is not None:
+        return _scan(Path(rel).parts)[0]
+    rest, _, consumido = _scan3(Path(path).parts)
+    if cwd and os.path.isabs(path) and not consumido:
+        return ()
+    return rest
+
+
+def relatorio_testador(path: str, cwd: str | None = None) -> bool:
     """Relatório do testador: `.md` sob `.superpowers/sdd/`, fora de `.claude/` e das souls."""
-    rest, protegido = _scan(Path(path).parts)
-    return (not protegido and path.endswith(".md")
-            and any(rest[i] == ".superpowers" and rest[i + 1] == "sdd" for i in range(len(rest) - 1)))
+    if _protegido(Path(path).parts) or not path.endswith(".md"):
+        return False
+    rest = _partes_de_liberacao(path, cwd)
+    return any(rest[i] == ".superpowers" and rest[i + 1] == "sdd" for i in range(len(rest) - 1))
+
+
+def _norm(p) -> str:
+    return os.path.normcase(str(p)).casefold()
+
+
+def _sob(real, base) -> bool:
+    r, b = _norm(real), _norm(base)
+    return r == b or r.startswith(b.rstrip(os.sep) + os.sep)
 
 
 def _dentro_das_souls(real: Path) -> bool:
-    souls = souls_dir()
-    return real == souls or souls in real.parents
+    return _sob(real, souls_dir())
+
+
+def _dentro_da_config(path: str, real: Path) -> bool:
+    """Diretório de configuração do Claude Code (`CLAUDE_CONFIG_DIR` e `~/.claude`), qualquer nome."""
+    bases = [os.path.expanduser("~/.claude")]
+    if os.environ.get("CLAUDE_CONFIG_DIR"):
+        bases.append(os.path.expanduser(os.environ["CLAUDE_CONFIG_DIR"]))
+    return any(_sob(c, os.path.realpath(b)) or _sob(c, os.path.abspath(b))
+               for b in bases for c in (real, os.path.abspath(path)))
+
+
+def _real_e_cwd(path: str, cwd: str | None):
+    return os.path.realpath(path), (os.path.realpath(cwd) if cwd else None)
 
 
 def testador_editavel(path: str, cwd: str | None = None) -> bool:
     """O testador altera testes e grava relatórios `.md` sob `.superpowers/sdd/`; nunca
-    sob `.claude/` (fora do prefixo de worktree) nem nas souls, mesmo em caminho de teste."""
-    real = Path(os.path.realpath(path))
-    if _dentro_das_souls(real) or _protegido(real.parts) or _protegido(Path(path).parts):
+    sob `.claude/` (fora do prefixo de worktree) nem nas souls, mesmo em caminho de teste.
+    As regras que liberam valem para o caminho normalizado e para o realpath."""
+    real, rcwd = _real_e_cwd(path, cwd)
+    if (_dentro_das_souls(Path(real)) or _dentro_da_config(path, Path(real))
+            or _protegido(Path(real).parts) or _protegido(Path(path).parts)):
         return False
-    return is_test_path(path, cwd) or relatorio_testador(path)
+    return all(is_test_path(x, c) or relatorio_testador(x, c) for x, c in ((path, cwd), (real, rcwd)))
 
 
-def orquestrador_editavel(path: str) -> bool:
+def orquestrador_editavel(path: str, cwd: str | None = None) -> bool:
     """O orquestrador só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/`
     (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`);
     o prefixo de worktree nativo `.claude/worktrees/<nome>/` não conta como `.claude/`."""
-    rest, protegido = _scan(Path(path).parts)
-    return not protegido and (path.endswith(".md") or ".superpowers" in rest)
+    if _protegido(Path(path).parts):
+        return False
+    return path.endswith(".md") or ".superpowers" in _partes_de_liberacao(path, cwd)
 
 
 def _resolve(path: str, cwd: str) -> str:
@@ -296,13 +343,15 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
         raw = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
         path = _resolve(raw, cwd) if raw else ""
         if role == "testador" and not testador_editavel(path, cwd):
-            return ("Trava do testador: só altera testes e relatórios .md sob .superpowers/; "
+            return ("Trava do testador: só altera testes e relatórios .md sob .superpowers/sdd/; "
                     "não altera código de produção. Aponte o problema no relatório em vez de editar.")
         if role == "orquestrador":
-            real = Path(os.path.realpath(path))
+            real_s, rcwd = _real_e_cwd(path, cwd)
+            real = Path(real_s)
             if _dentro_das_souls(real):
                 return "Trava do orquestrador: não altera as souls."
-            if not orquestrador_editavel(path) or _protegido(real.parts):
+            if (not orquestrador_editavel(path, cwd) or not orquestrador_editavel(real_s, rcwd)
+                    or _protegido(real.parts) or _dentro_da_config(path, real)):
                 return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
                         "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor.")
         if role == "escriba":
