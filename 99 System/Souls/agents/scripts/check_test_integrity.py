@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from soul_guard import is_test_path, orquestrador_editavel  # noqa: E402
+from soul_guard import is_test_path, orquestrador_editavel, relatorio_testador  # noqa: E402
 
 DECL = [r"@Test\b", r"^\s*def test_", r"^\s*(async\s+)?(it|test)\s*\(", r"^\s*func Test"]
 ASSERT = [r"\bassert", r"\bexpect\s*\(", r"assertThat", r"\bverify\s*\(", r"\.should"]
@@ -129,6 +129,8 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
             for f in files:
                 if is_test_path(f):
                     testador_tests.add(f)
+                elif relatorio_testador(f):
+                    continue
                 else:
                     findings.append(f"[TESTADOR_PRODUCAO] {short} {f}: testador alterou arquivo que não é de teste")
         if "orquestrador-etapa" in souls:

@@ -64,6 +64,16 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("OK: nenhum apontamento", out)
 
+    def test_relatorio_do_testador_nao_e_producao(self):
+        self.dev_baseline()
+        self.repo.write(".superpowers/sdd/P/task-1-tester-report.md", "# r\n")
+        self.repo.commit("report", "testador")
+        code, out = self.repo.check(self.base)
+        self.assertEqual(code, 0, out)
+        self.repo.write(".superpowers/sdd/P/x.py", "x = 1\n")
+        self.repo.commit("py", "testador")
+        self.assertEqual(self.repo.check(self.base)[0], 1)
+
     def test_testador_producao(self):
         self.dev_baseline()
         self.repo.write("src/main/a.py", "def a():\n    return 2\n")

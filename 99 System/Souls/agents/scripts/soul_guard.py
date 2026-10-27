@@ -74,17 +74,39 @@ def _relative_inside(path: str, cwd: str | None) -> str | None:
     return None
 
 
-def _strip_worktree(parts: tuple[str, ...]) -> tuple[str, ...]:
-    """Remove só o prefixo `<...>/.claude/worktrees/<nome>/` (última ocorrência): worktrees
-    nativos do Claude Code vivem sob `.claude/`. O resto do caminho é avaliado como pertence."""
-    for i in range(len(parts) - 3, -1, -1):
-        if parts[i] == ".claude" and parts[i + 1] == "worktrees":
-            return parts[i + 3:]
-    return parts
+PROTEGIDOS = {".claude", "second-brain-souls"}
+
+
+def _scan(parts: tuple[str, ...]) -> tuple[tuple[str, ...], bool]:
+    """Varre os segmentos da esquerda para a direita (sem diferenciar maiúsculas).
+    `.claude/worktrees/<nome>/<algo>` é um worktree nativo do Claude Code e é consumido
+    (o que veio antes deixa de contar para o resto); qualquer outro `.claude` ou
+    `second-brain-souls` protege. Devolve (partes restantes, protegido)."""
+    low = [x.lower() for x in parts]
+    rest: list[str] = []
+    protegido = False
+    i = 0
+    while i < len(parts):
+        if (low[i] == ".claude" and i + 3 < len(parts) and low[i + 1] == "worktrees"
+                and low[i + 2] not in PROTEGIDOS):
+            rest, i = [], i + 3
+            continue
+        if low[i] in PROTEGIDOS:
+            protegido = True
+        rest.append(parts[i])
+        i += 1
+    return tuple(rest), protegido
 
 
 def _protegido(parts: tuple[str, ...]) -> bool:
-    return bool({".claude", "second-brain-souls"} & set(_strip_worktree(parts)))
+    return _scan(parts)[1]
+
+
+def relatorio_testador(path: str) -> bool:
+    """Relatório do testador: `.md` sob `.superpowers/sdd/`, fora de `.claude/` e das souls."""
+    rest, protegido = _scan(Path(path).parts)
+    return (not protegido and path.endswith(".md")
+            and any(rest[i] == ".superpowers" and rest[i + 1] == "sdd" for i in range(len(rest) - 1)))
 
 
 def _dentro_das_souls(real: Path) -> bool:
@@ -96,24 +118,17 @@ def testador_editavel(path: str, cwd: str | None = None) -> bool:
     """O testador altera testes e grava relatórios `.md` sob `.superpowers/sdd/`; nunca
     sob `.claude/` (fora do prefixo de worktree) nem nas souls, mesmo em caminho de teste."""
     real = Path(os.path.realpath(path))
-    if _dentro_das_souls(real) or ".claude" in _strip_worktree(real.parts) \
-            or ".claude" in _strip_worktree(Path(path).parts):
+    if _dentro_das_souls(real) or _protegido(real.parts) or _protegido(Path(path).parts):
         return False
-    if is_test_path(path, cwd):
-        return True
-    parts = _strip_worktree(Path(path).parts)
-    return path.endswith(".md") and any(
-        parts[i] == ".superpowers" and parts[i + 1] == "sdd" for i in range(len(parts) - 1))
+    return is_test_path(path, cwd) or relatorio_testador(path)
 
 
 def orquestrador_editavel(path: str) -> bool:
     """O orquestrador só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/`
     (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`);
     o prefixo de worktree nativo `.claude/worktrees/<nome>/` não conta como `.claude/`."""
-    parts = Path(path).parts
-    if _protegido(parts):
-        return False
-    return path.endswith(".md") or ".superpowers" in parts
+    rest, protegido = _scan(Path(path).parts)
+    return not protegido and (path.endswith(".md") or ".superpowers" in rest)
 
 
 def _resolve(path: str, cwd: str) -> str:

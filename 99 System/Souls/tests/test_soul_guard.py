@@ -242,6 +242,32 @@ class FinalReviewTest(unittest.TestCase):
                     self.assertIsNotNone(decide("orquestrador", tool, {"file_path": rel}, str(cwd), VAULT), (cwd, rel))
                     self.assertIsNotNone(decide("orquestrador", tool, {"file_path": str(cwd / rel)}, str(cwd), VAULT), (cwd, rel))
 
+    def test_prefixo_de_worktree_varrido_segmento_a_segmento(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            (repo / ".claude" / "agents").mkdir(parents=True)
+            (repo / ".claude" / "commands").mkdir(parents=True)
+            (repo / "atalho").symlink_to(repo / ".claude")
+            bad = [".claude/agents/.claude/worktrees/y/evil.md", ".claude/commands/.claude/worktrees/y/evil.md",
+                   "atalho/agents/.claude/worktrees/y/evil.md", ".claude/worktrees/t.md",
+                   ".claude/worktrees/.claude/agents/t.md", ".claude/worktrees/second-brain-souls/t.md",
+                   ".CLAUDE/agents/x.md", ".claude/worktrees/y/.claude/agents/x.md",
+                   ".claude/worktrees/y/Second-Brain-Souls/x.md"]
+            for p in bad:
+                full = str(repo / p)
+                self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": full}, str(repo), VAULT), p)
+                self.assertIsNotNone(decide("orquestrador", "Edit", {"file_path": p}, str(repo), VAULT), p)
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(repo / ".claude/agents/.claude/worktrees/y/tests/x.md")}, str(repo), VAULT))
+            self.assertIsNotNone(decide("testador", "Write", {"file_path": str(repo / ".claude/worktrees/.claude/tests/x.md")}, str(repo), VAULT))
+            for p in [".claude/worktrees/y/docs/p.md", ".claude/worktrees/y/.superpowers/sdd/l.json",
+                      ".claude/worktrees/y/.claude/worktrees/z/docs/p.md"]:
+                self.assertIsNone(decide("orquestrador", "Write", {"file_path": str(repo / p)}, str(repo), VAULT), p)
+            self.assertIsNone(decide("testador", "Write", {"file_path": str(repo / ".claude/worktrees/y/tests/x.py")}, str(repo), VAULT))
+        self.assertFalse(soul_guard.orquestrador_editavel(".claude/agents/.claude/worktrees/y/a.md"))
+        self.assertFalse(soul_guard.orquestrador_editavel(".claude/worktrees/y/src/A.kt"))
+        self.assertFalse(soul_guard.orquestrador_editavel("/h/.superpowers/r/.claude/worktrees/y/src/A.kt"))
+        self.assertTrue(soul_guard.orquestrador_editavel("/r/.claude/worktrees/y/.superpowers/l.json"))
+
     def test_testador_confinado(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(os.path.realpath(tmp))
