@@ -8,6 +8,7 @@ SOULS = {
     "desenvolvedor": "desenvolvedor",
     "testador": "testador",
     "revisor-seguranca": "revisor",
+    "orquestrador-etapa": "orquestrador",
 }
 TITULOS = [
     "## Quem sou",
