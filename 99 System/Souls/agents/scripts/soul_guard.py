@@ -4,6 +4,8 @@
 Uso: soul_guard.py <papel>   (JSON do hook no stdin)
 Sai com 0 para liberar; com 2 e mensagem em stderr para bloquear.
 """
+from __future__ import annotations
+
 import fnmatch
 import json
 import os
@@ -13,7 +15,7 @@ import sys
 from pathlib import Path
 
 ROLES = {"orquestrador", "desenvolvedor", "testador", "revisor", "escriba", "curador"}
-WRITE_TOOLS = {"Edit", "Write", "NotebookEdit"}
+WRITE_TOOLS = {"Edit", "Write", "NotebookEdit", "MultiEdit"}
 
 TEST_DIRS = {"test", "tests", "__tests__", "spec", "specs", "testing", "androidTest",
              "testFixtures", "integrationTest", "e2e"}
@@ -28,33 +30,33 @@ TEST_FILE_PATTERNS = [
 
 ESCRIBA_CMDS = {"date", "uuidgen", "ls", "pwd"}
 ESCRIBA_GIT = {"log", "status", "show", "diff", "rev-parse", "branch"}
-ESCRIBA_META = (">", ";", "&&", "||", "|", "`", "$(", "\n")
+ESCRIBA_BRANCH_FLAGS = {"--list", "-a", "-r", "--show-current", "-v", "-vv"}
+ESCRIBA_META = (">", "<", "&", ";", "|", "`", "$(", "(", ")", "\n", "\r")
 UUID_CODE = re.compile(r"^\s*import uuid\s*;\s*print\(uuid\.uuid4\(\)\)\s*$")
 
-REVISOR_GIT = ("commit|push|reset|checkout|switch|merge|rebase|restore|clean|stash|tag|am|"
-               "apply|cherry-pick")
-GIT_PREFIX = r"\bgit\s+(?:(?:-C\s+\S+|-c\s+\S+|--\S+|-\S+)\s+)*"
-REVISOR_PATTERNS = [
-    (re.compile(r"(?:^|[;&|(]\s*)(?:rm|mv|tee)\b"), "rm, mv e tee"),
-    (re.compile(r"\bsed\s+(?:\S+\s+)*?(?:-\w*i\w*|--in-place)\b"), "sed -i"),
-    (re.compile(GIT_PREFIX + "(?:" + REVISOR_GIT + r")\b"), "git que altera o repositório"),
-    (re.compile(r"\b(?:npm|pnpm|yarn)\s+(?:install|add|i)\b"), "instalação de pacotes"),
-    (re.compile(r"\bpip3?\s+install\b"), "instalação de pacotes"),
-    (re.compile(r"\b(?:brew|apt|apt-get|snap)\s+install\b"), "instalação de pacotes"),
-    (re.compile(r"\b(?:go|cargo|gem)\s+install\b"), "instalação de pacotes"),
-    (re.compile(r"\b(?:curl|wget)\b[^|]*\|\s*(?:sudo\s+)?(?:sh|bash)\b"), "curl/wget com pipe para shell"),
-]
+REVISOR_GIT = {"commit", "push", "reset", "checkout", "switch", "merge", "rebase", "restore",
+               "clean", "stash", "tag", "am", "apply", "cherry-pick"}
+REVISOR_WORDS = {"rm", "mv", "tee", "cp"}
+INSTALLERS = {"npm": {"install", "add", "i"}, "pnpm": {"install", "add", "i"},
+              "yarn": {"install", "add", "i"}, "pip": {"install"}, "pip3": {"install"},
+              "brew": {"install"}, "apt": {"install"}, "apt-get": {"install"}, "snap": {"install"},
+              "go": {"install"}, "cargo": {"install"}, "gem": {"install"}}
+FIND_BAD = {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
 SAFE_REDIRECTS = re.compile(r"\d*>&\d+|&?\d*>>?\s*/dev/null")
-PUSH = re.compile(GIT_PREFIX + r"push\b")
-CURADOR_PATTERNS = [
-    (re.compile(GIT_PREFIX + r"reset\s+(?:\S+\s+)*--hard\b"), "git reset --hard"),
-    (re.compile(GIT_PREFIX + r"clean\s+(?:\S+\s+)*-\w*f"), "git clean -f"),
-    (re.compile(r"\brm\s+(?:-\S+\s+)*(?:-\w*[rR]\w*f\w*|-\w*f\w*[rR]\w*|-[rR]\s+(?:-\S+\s+)*-f|-f\s+(?:-\S+\s+)*-[rR])\b"), "rm -rf"),
-]
+PIPE_TO_SHELL = re.compile(r"\b(?:curl|wget)\b[^|]*\|\s*(?:sudo\s+)?(?:sh|bash)\b")
+SHORT_RECURSIVE = re.compile(r"^-[A-Za-z]*[rR][A-Za-z]*$")
+SHORT_FORCE = re.compile(r"^-[A-Za-z]*f[A-Za-z]*$")
 
 
-def is_test_path(path: str) -> bool:
-    p = Path(path)
+def is_test_path(path: str, cwd: str | None = None) -> bool:
+    """Caminho de teste. Se `cwd` for dado e o caminho estiver dentro dele,
+    só os segmentos relativos a `cwd` contam (evita /home/x/tests/proj)."""
+    p = path
+    if cwd and os.path.isabs(path) and os.path.isabs(cwd):
+        rel = os.path.relpath(path, cwd)
+        if not rel.startswith(".."):
+            p = rel
+    p = Path(p)
     if any(part in TEST_DIRS for part in p.parts[:-1]):
         return True
     return any(fnmatch.fnmatchcase(p.name, pat) for pat in TEST_FILE_PATTERNS)
@@ -68,11 +70,57 @@ def _resolve(path: str, cwd: str) -> str:
     return os.path.normpath(os.path.join(cwd or "", path))
 
 
-def _tokens(command: str):
+def _tokens(command: str) -> list[str]:
     try:
         return shlex.split(command)
     except ValueError:
         return command.split()
+
+
+def _segments(command: str) -> list[list[str]]:
+    """Tokeniza separando operadores de shell (; & | < > ( ) e quebras de linha)."""
+    text = command.replace("\n", " ; ")
+    try:
+        lex = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        toks = list(lex)
+    except ValueError:
+        toks = text.split()
+    segs, cur = [], []
+    for t in toks:
+        if t and all(c in "();&|<>" for c in t):
+            if cur:
+                segs.append(cur)
+            cur = []
+        else:
+            cur.append(t)
+    if cur:
+        segs.append(cur)
+    return segs
+
+
+def _base(tok: str) -> str:
+    return os.path.basename(tok)
+
+
+def _git_calls(segs):
+    """Devolve (subcomando, argumentos) para cada `git` encontrado."""
+    for seg in segs:
+        for i, t in enumerate(seg):
+            if _base(t) != "git":
+                continue
+            j = i + 1
+            while j < len(seg) and seg[j].startswith("-"):
+                j += 2 if seg[j] in ("-C", "-c") else 1
+            if j < len(seg):
+                yield seg[j], seg[j + 1:]
+
+
+def _first_arg(seg, i):
+    for t in seg[i + 1:]:
+        if not t.startswith("-"):
+            return t
+    return None
 
 
 def _decide_escriba_bash(command: str):
@@ -80,16 +128,72 @@ def _decide_escriba_bash(command: str):
     if len(toks) == 3 and toks[0] == "python3" and toks[1] == "-c" and UUID_CODE.match(toks[2]):
         return None
     if any(m in command for m in ESCRIBA_META):
-        return ("Trava do escriba: Bash sem redirecionamento, encadeamento, pipe ou substituição. "
+        return ("Trava do escriba: Bash sem redirecionamento, encadeamento, pipe, subshell ou substituição. "
                 "Use apenas comandos simples e crie notas com a ferramenta Write em 00 Inbox/.")
     first = toks[0] if toks else ""
+    if any(t.startswith("--output") for t in toks):
+        return "Trava do escriba: --output grava arquivos e é bloqueado. Use Write em 00 Inbox/."
     if first in ESCRIBA_CMDS:
         return None
     if first == "git" and len(toks) > 1 and toks[1] in ESCRIBA_GIT:
+        if toks[1] == "branch" and not set(toks[2:]) <= ESCRIBA_BRANCH_FLAGS:
+            return ("Trava do escriba: git branch só lista (sem argumentos, --list, -a, -r, "
+                    "--show-current, -v, -vv); não altera branches.")
         return None
     return ("Trava do escriba: Bash só permite date, uuidgen, ls, pwd, git de leitura "
             "(log, status, show, diff, rev-parse, branch) e a geração de uuid. "
             "Para escrever, use Write em 00 Inbox/.")
+
+
+def _revisor_block(command: str, segs):
+    stripped = SAFE_REDIRECTS.sub(" ", command)
+    if ">" in stripped:
+        return "redirecionamento de escrita"
+    if PIPE_TO_SHELL.search(command):
+        return "curl/wget com pipe para shell"
+    for sub, _ in _git_calls(segs):
+        if sub in REVISOR_GIT:
+            return f"git {sub}"
+    for seg in segs:
+        names = [_base(t) for t in seg]
+        for w in REVISOR_WORDS:
+            if w in names:
+                return w
+        if "sed" in names and any(re.match(r"^-[A-Za-z]*i[A-Za-z]*$|^--in-place", t) for t in seg):
+            return "sed -i"
+        if "find" in names and any(t in FIND_BAD for t in seg):
+            return "find com -delete/-exec/-ok"
+        if "curl" in names and any(
+                t in ("--output", "--remote-name", "--remote-name-all") or t.startswith("--output")
+                or re.match(r"^-[A-Za-z]*[oO]", t) and not t.startswith("--") for t in seg):
+            return "curl gravando em arquivo"
+        if "wget" in names:
+            stdout = any(re.match(r"^-[A-Za-z]*O-$", t) or t == "--output-document=-" for t in seg) or any(
+                a == "-O" and b == "-" for a, b in zip(seg, seg[1:]))
+            if not stdout:
+                return "wget que grava em arquivo (use -O -)"
+        for i, t in enumerate(seg):
+            verbs = INSTALLERS.get(_base(t))
+            if verbs and _first_arg(seg, i) in verbs:
+                return "instalação de pacotes"
+    return None
+
+
+def _curador_block(segs):
+    for sub, args in _git_calls(segs):
+        if sub == "reset" and "--hard" in args:
+            return "git reset --hard"
+        if sub == "clean" and any(a == "--force" or SHORT_FORCE.match(a) for a in args):
+            return "git clean -f"
+    for seg in segs:
+        for i, t in enumerate(seg):
+            if _base(t) == "rm":
+                flags = seg[i + 1:]
+                rec = any(a == "--recursive" or SHORT_RECURSIVE.match(a) for a in flags)
+                frc = any(a == "--force" or SHORT_FORCE.match(a) for a in flags)
+                if rec and frc:
+                    return "rm -rf"
+    return None
 
 
 def _decide_bash(role: str, command: str):
@@ -97,30 +201,27 @@ def _decide_bash(role: str, command: str):
         msg = _decide_escriba_bash(command)
         if msg:
             return msg
-    if role != "orquestrador" and PUSH.search(command):
+    segs = _segments(command)
+    if role != "orquestrador" and any(sub == "push" for sub, _ in _git_calls(segs)):
         return f"Trava do {role}: git push não é permitido. Deixe o push para o usuário."
     if role == "revisor":
-        stripped = SAFE_REDIRECTS.sub(" ", command)
-        if ">" in stripped:
-            return ("Trava do revisor: o revisor não escreve arquivos (redirecionamento bloqueado). "
-                    "Relate o achado no relatório.")
-        for pat, nome in REVISOR_PATTERNS:
-            if pat.search(command):
-                return (f"Trava do revisor: {nome} é bloqueado. O revisor só lê e analisa; "
-                        "relate o achado no relatório.")
+        what = _revisor_block(command, segs)
+        if what:
+            return (f"Trava do revisor: {what} é bloqueado. O revisor só lê e analisa; "
+                    "relate o achado no relatório.")
     if role == "curador":
-        for pat, nome in CURADOR_PATTERNS:
-            if pat.search(command):
-                return f"Trava do curador: {nome} é destrutivo e bloqueado. Peça confirmação ao usuário."
+        what = _curador_block(segs)
+        if what:
+            return f"Trava do curador: {what} é destrutivo e bloqueado. Peça confirmação ao usuário."
     return None
 
 
-def decide(role, tool_name, tool_input, cwd, vault):
+def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -> str | None:
     tool_input = tool_input or {}
     if tool_name in WRITE_TOOLS:
         raw = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
         path = _resolve(raw, cwd) if raw else ""
-        if role == "testador" and not is_test_path(path):
+        if role == "testador" and not is_test_path(path, cwd):
             return ("Trava do testador: não altera código de produção. "
                     "Aponte o problema no relatório em vez de editar.")
         if role == "orquestrador":
@@ -143,22 +244,32 @@ def decide(role, tool_name, tool_input, cwd, vault):
     return None
 
 
-def main(argv):
+def _main(argv):
     if len(argv) != 2 or argv[1] not in ROLES:
-        print("uso: soul_guard.py <papel>", file=sys.stderr)
-        return 0
-    try:
-        data = json.load(sys.stdin)
-    except ValueError:
-        return 0
+        print("Trava das souls: papel ausente ou inválido; bloqueado por segurança. "
+              "Papéis: " + ", ".join(sorted(ROLES)), file=sys.stderr)
+        return 2
+    data = json.load(sys.stdin)
+    if not isinstance(data, dict) or not isinstance(data.get("tool_input", {}), dict):
+        print("Trava das souls: payload do hook inválido; bloqueado por segurança.", file=sys.stderr)
+        return 2
     role = argv[1]
     vault = vault_root() if role == "escriba" else Path(".")
-    msg = decide(role, data.get("tool_name", ""), data.get("tool_input") or {},
+    msg = decide(role, str(data.get("tool_name", "")), data.get("tool_input") or {},
                  data.get("cwd") or os.getcwd(), vault)
     if msg:
         print(msg, file=sys.stderr)
         return 2
     return 0
+
+
+def main(argv):
+    try:
+        return _main(argv)
+    except Exception as exc:  # falha fechada: qualquer erro bloqueia
+        print(f"Trava das souls: erro interno ({type(exc).__name__}); bloqueado por segurança.",
+              file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

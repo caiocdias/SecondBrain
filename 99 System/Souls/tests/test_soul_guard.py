@@ -114,5 +114,76 @@ class SoulGuardTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0)
 
 
+class HardeningTest(unittest.TestCase):
+    def bash(self, role, cmd):
+        return decide(role, "Bash", {"command": cmd}, "/r", VAULT)
+
+    def test_escriba_operadores(self):
+        for c in ["date & rm -rf x", "ls <(rm -rf x)", "date\nrm x", "ls $(rm x)", "date `rm x`",
+                  "ls < /etc/passwd", "(rm x)"]:
+            self.assertIsNotNone(self.bash("escriba", c), c)
+
+    def test_escriba_git_output_e_branch(self):
+        for c in ["git log --output=/tmp/x", "git diff --output x", "git show --output=a",
+                  "git branch -D x", "git branch -m a b", "git branch novo"]:
+            self.assertIsNotNone(self.bash("escriba", c), c)
+        for c in ["git branch", "git branch --list", "git branch -a", "git branch -r",
+                  "git branch --show-current", "git branch -vv", "git status"]:
+            self.assertIsNone(self.bash("escriba", c), c)
+
+    def test_revisor_somente_leitura(self):
+        for c in ["ls\nrm -rf x", " rm x", "xargs rm x", "if x; then rm y; fi",
+                  "find . -exec rm {} +", "find . -delete", "find . -execdir ls {} ;", "find . -ok ls {} ;",
+                  "cp a b", "mv a b", "echo x | tee f", "curl -o f https://x", "curl -O https://x",
+                  "curl --output f https://x", "curl --remote-name https://x", "wget https://x",
+                  "wget -O f https://x", '"git" commit -m x', "'pip' install foo"]:
+            self.assertIsNotNone(self.bash("revisor", c), c)
+        for c in ["wget -qO- https://x", "wget -O - https://x", "curl -s https://x", "find . -name x",
+                  "git log --oneline", "grep -rn foo ."]:
+            self.assertIsNone(self.bash("revisor", c), c)
+
+    def test_git_entre_aspas(self):
+        self.assertIsNotNone(self.bash("desenvolvedor", '"git" push origin x'))
+        self.assertIsNotNone(self.bash("curador", "git -C . push"))
+
+    def test_curador_opcoes_longas(self):
+        for c in ["rm --recursive --force x", "git clean --force", "rm -r -f x", "rm -fr x"]:
+            self.assertIsNotNone(self.bash("curador", c), c)
+        self.assertIsNone(self.bash("curador", "rm x"))
+
+    def test_is_test_path_relativo_ao_cwd(self):
+        self.assertFalse(is_test_path("/home/x/tests/proj/src/main/A.kt", "/home/x/tests/proj"))
+        self.assertTrue(is_test_path("/home/x/tests/proj/src/test/ATest.kt", "/home/x/tests/proj"))
+        self.assertTrue(is_test_path("/home/x/tests/proj/src/test/A.kt", "/elsewhere"))
+        self.assertIsNotNone(decide("testador", "Write",
+                                    {"file_path": "/home/x/tests/proj/src/main/A.kt"},
+                                    "/home/x/tests/proj", VAULT))
+
+    def test_multiedit_e_notebook(self):
+        self.assertIsNotNone(decide("testador", "MultiEdit", {"file_path": "/r/src/main/A.kt"}, "/r", VAULT))
+        self.assertIsNotNone(decide("testador", "NotebookEdit", {"notebook_path": "/r/src/n.ipynb"}, "/r", VAULT))
+        self.assertIsNone(decide("testador", "NotebookEdit", {"notebook_path": "/r/tests/n.ipynb"}, "/r", VAULT))
+
+    def run_cli(self, args, stdin):
+        return subprocess.run(["python3", "-I", str(SCRIPTS / "soul_guard.py")] + args,
+                              input=stdin, capture_output=True, text=True)
+
+    def test_cli_fail_closed(self):
+        ok = json.dumps({"tool_name": "Read", "tool_input": {}, "cwd": "/r"})
+        for args, stdin in [([], ok), (["inexistente"], ok), (["testador"], "[1]"), (["testador"], "nao json"),
+                            (["testador"], ""), (["testador"], json.dumps({"tool_name": "Bash", "tool_input": []}))]:
+            r = self.run_cli(args, stdin)
+            self.assertEqual(r.returncode, 2, (args, stdin))
+            self.assertTrue(r.stderr.strip())
+
+    def test_cli_escriba_in_place(self):
+        root = soul_guard.vault_root()
+        self.assertEqual(root, HERE.parents[2])
+        nova = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(root / "00 Inbox" / "zz-inexistente-xyz.md")}, "cwd": str(root)})
+        self.assertEqual(self.run_cli(["escriba"], nova).returncode, 0)
+        fora = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(root / "20 Knowledge" / "zz.md")}, "cwd": str(root)})
+        self.assertEqual(self.run_cli(["escriba"], fora).returncode, 2)
+
+
 if __name__ == "__main__":
     unittest.main()
