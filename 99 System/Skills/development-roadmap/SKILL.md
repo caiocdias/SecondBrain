@@ -9,7 +9,7 @@ Um roadmap organiza um trabalho grande demais para um único plano em **etapas**
 
 - `superpowers:brainstorming`: descobrir o que o usuário quer, quando o pedido não traz spec ou design suficiente;
 - `superpowers:writing-plans`: transformar uma etapa num plano de tarefas com arquivos, interfaces e testes exatos;
-- `superpowers:subagent-driven-development` (ou `executing-plans`, sem subagentes): executar o plano com revisão por tarefa e revisão final;
+- `superpowers:subagent-driven-development`: executar o plano com revisão por tarefa e revisão final;
 - `superpowers:using-git-worktrees` e `superpowers:finishing-a-development-branch`: isolar o trabalho numa branch e decidir com o usuário como integrá-la.
 
 Se o superpowers não estiver instalado, avise o usuário (ele está registrado no Second Brain e é instalado pela configuração da máquina) e pare antes de escrever o roadmap.

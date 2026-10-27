@@ -136,7 +136,7 @@ Informar o que foi criado ou alterado, quais plugins foram instalados ou falhara
 
 ## Vault movido ou máquina desativada
 
-- **Vault movido**: repetir o procedimento, que substitui os caminhos antigos. Apagar de `~/.claude/skills/` os links que apontam para o caminho antigo; o script só limpa links do vault atual.
+- **Vault movido**: repetir o procedimento, que substitui os caminhos antigos. Apagar de `~/.claude/skills/` os links que apontam para o caminho antigo; o script só limpa links do vault atual. Apagar também o link antigo `~/.claude/agents/second-brain-souls`: o sync o reporta como conflito e não o repara.
 - **Desativar**: remover o bloco do `CLAUDE.md`, as entradas de `settings.json`, os links em `~/.claude/skills/` e o link `~/.claude/agents/second-brain-souls`; desinstalar plugins é opcional. Skills e registro de plugins continuam no vault.
 
 ## Limites

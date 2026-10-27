@@ -31,6 +31,7 @@ O vault deve continuar compreensível fora do Obsidian e utilizável sem IA ou p
 | `99 System/Templates/` | Modelos de preenchimento; excluídos de buscas de conteúdo e do processamento. |
 | `99 System/Bases/` | Consultas recomendadas e futuras visualizações do recurso Bases. |
 | `99 System/Skills/` | Repositório oficial das skills pessoais do Claude Code, ligadas a `~/.claude/skills/`; excluídas de buscas de conteúdo e do processamento. Ver [[99 System/Skills/README]]. |
+| `99 System/Souls/` | Repositório oficial das souls (subagentes especialistas do Claude Code), ligadas a `~/.claude/agents/second-brain-souls`; excluídas de buscas de conteúdo e do processamento. Ver [[99 System/Souls/README]]. |
 
 Na raiz ficam `AGENTS.md` (contrato) e `CLAUDE.md` (ponto de entrada do Claude Code, que apenas importa o contrato).
 

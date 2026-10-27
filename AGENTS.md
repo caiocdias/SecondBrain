@@ -60,4 +60,5 @@ Guia para o usuário: [[99 System/README]]. Consultas recomendadas: [[99 System/
 - Links `[[...]]` neste arquivo e nos protocolos usam o caminho a partir da raiz do vault, sem `.md`. Notas de conteúdo usam links pelo nome (ver schemas).
 - `.gitkeep`, `99 System/Templates/`, `99 System/Skills/` e arquivos temporários não são conteúdo e não entram em buscas nem no processamento.
 - Skills pessoais do Claude Code vivem em `99 System/Skills/` ([[99 System/Skills/README]]); crie ou instale novas skills ali.
+- Souls (subagentes especialistas do Claude Code) vivem em `99 System/Souls/` ([[99 System/Souls/README]]), fora de buscas e do processamento como as skills.
 - Ferramentas específicas (skills, comandos, configurações de agentes) são apenas portas de entrada para estes documentos, que continuam sendo a fonte da verdade.
