@@ -108,10 +108,11 @@ foreach ($item in Get-ChildItem -LiteralPath $UserSkills -Force) {
 }
 
 $soulsLinked = $false
+$soulsConflict = $false
 if (Test-Path -LiteralPath $VaultSouls) {
   $existing = Get-Item -LiteralPath $SoulsLink -Force -ErrorAction SilentlyContinue
   if ($existing) {
-    if (-not (Test-Link $existing) -or ((Get-LinkTarget $existing) -ne $VaultSouls)) { $conflicts += 'agents/second-brain-souls' }
+    if (-not (Test-Link $existing) -or ((Get-LinkTarget $existing) -ne $VaultSouls)) { $soulsConflict = $true }
   } else {
     try {
       New-Item -ItemType Directory -Force -Path (Split-Path -Parent $SoulsLink) | Out-Null
@@ -159,6 +160,7 @@ if ($linked) { $msg += "Skills do Second Brain ativadas: $($linked -join ' ')." 
 if ($soulsLinked) { $msg += "Souls do Second Brain ativadas." }
 if ($registered) { $msg += "Plugins registrados no Second Brain: $($registered -join ' ')." }
 if ($conflicts) { $msg += "Conflito de nome entre ~/.claude/skills e o vault (resolver à mão): $($conflicts -join ' ')." }
+if ($soulsConflict) { $msg += "Conflito entre ~/.claude e o vault (resolver à mão): agents/second-brain-souls não é o link para as souls deste vault." }
 if ($failed) { $msg += "Falha ao sincronizar: $($failed -join ' ')." }
 if ($msg) { @{ systemMessage = ($msg -join ' ') } | ConvertTo-Json -Compress }
 exit 0

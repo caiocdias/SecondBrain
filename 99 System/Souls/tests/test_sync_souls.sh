@@ -32,6 +32,8 @@ rm "$LINK"; mkdir -p "$TMP/outro"; ln -s "$TMP/outro" "$LINK"
 out3="$("$SYNC")"
 case "$out3" in *Conflito*) r=ok ;; *) r=no ;; esac
 check "link para outro destino gera Conflito" "$r"
+case "$out3" in *"~/.claude/skills"*) r=no ;; *agents/second-brain-souls*) r=ok ;; *) r=no ;; esac
+check "conflito das souls cita agents/second-brain-souls, não ~/.claude/skills" "$r"
 [ "$(readlink "$LINK")" = "$TMP/outro" ] && r=ok || r=no
 check "link em conflito não é alterado" "$r"
 
@@ -41,6 +43,12 @@ case "$out4" in *Conflito*) r=ok ;; *) r=no ;; esac
 check "diretório real no lugar do link gera Conflito" "$r"
 [ -d "$LINK" ] && [ ! -L "$LINK" ] && r=ok || r=no
 check "diretório real não é alterado" "$r"
+
+rm -rf "$CLAUDE_CONFIG_DIR/agents"; printf 'x' > "$CLAUDE_CONFIG_DIR/agents"
+out6="$("$SYNC" 2>/dev/null)"
+case "$out6" in *"Falha ao sincronizar"*agents/second-brain-souls*) r=ok ;; *) r=no ;; esac
+check "falha ao criar o link das souls é relatada" "$r"
+rm -f "$CLAUDE_CONFIG_DIR/agents"
 
 rm -rf "$LINK" "$VAULT/99 System/Souls"
 out5="$("$SYNC")"

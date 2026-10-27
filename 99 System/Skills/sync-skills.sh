@@ -30,6 +30,7 @@ mkdir -p "$USER_SKILLS"
 moved=()
 linked=()
 conflicts=()
+failed=()
 registered=()
 notes=()
 
@@ -45,6 +46,8 @@ for dir in "$USER_SKILLS"/*/; do
   fi
   if mv "$dir" "$VAULT_SKILLS/$name" && ln -s "$VAULT_SKILLS/$name" "$dir"; then
     moved+=("$name")
+  else
+    failed+=("$name")
   fi
 done
 
@@ -58,7 +61,7 @@ for dir in "$VAULT_SKILLS"/*/; do
     continue
   fi
   [ -e "$link" ] && continue
-  ln -s "$dir" "$link" && linked+=("$name")
+  if ln -s "$dir" "$link"; then linked+=("$name"); else failed+=("$name"); fi
 done
 
 for link in "$USER_SKILLS"/*; do
@@ -69,13 +72,16 @@ for link in "$USER_SKILLS"/*; do
 done
 
 souls_linked=0
+souls_conflict=0
 if [ -d "$VAULT_SOULS" ]; then
   if [ -L "$SOULS_LINK" ]; then
-    [ "$(readlink "$SOULS_LINK")" = "$VAULT_SOULS" ] || conflicts+=("agents/second-brain-souls")
+    [ "$(readlink "$SOULS_LINK")" = "$VAULT_SOULS" ] || souls_conflict=1
   elif [ -e "$SOULS_LINK" ]; then
-    conflicts+=("agents/second-brain-souls")
+    souls_conflict=1
   elif mkdir -p "$CONFIG_DIR/agents" && ln -s "$VAULT_SOULS" "$SOULS_LINK"; then
     souls_linked=1
+  else
+    failed+=("agents/second-brain-souls")
   fi
 fi
 
@@ -143,6 +149,8 @@ msg=""
 [ "$souls_linked" -eq 1 ] && msg+="Souls do Second Brain ativadas. "
 [ ${#registered[@]} -gt 0 ] && msg+="Plugins registrados no Second Brain: ${registered[*]}. "
 [ ${#conflicts[@]} -gt 0 ] && msg+="Conflito de nome entre ~/.claude/skills e o vault (resolver à mão): ${conflicts[*]}. "
+[ "$souls_conflict" -eq 1 ] && msg+="Conflito entre ~/.claude e o vault (resolver à mão): agents/second-brain-souls não é o link para as souls deste vault. "
+[ ${#failed[@]} -gt 0 ] && msg+="Falha ao sincronizar: ${failed[*]}. "
 [ ${#notes[@]} -gt 0 ] && msg+="Aviso: ${notes[*]}. "
 if [ -n "$msg" ]; then
   printf '{"systemMessage": "%s"}\n' "${msg% }"
