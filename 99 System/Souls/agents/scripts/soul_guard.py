@@ -17,8 +17,9 @@ from pathlib import Path
 ROLES = {"orquestrador", "desenvolvedor", "testador", "revisor", "escriba", "curador"}
 WRITE_TOOLS = {"Edit", "Write", "NotebookEdit", "MultiEdit"}
 
-TEST_DIRS = {"test", "tests", "__tests__", "spec", "specs", "testing", "androidTest",
-             "testFixtures", "integrationTest", "e2e"}
+# `spec`, `specs` e `testing` não são diretórios de teste (api/spec/openapi.yaml é produção);
+# specs de RSpec contam pelo nome (*_spec.rb).
+TEST_DIRS = {"test", "tests", "__tests__", "androidTest", "testFixtures", "integrationTest", "e2e"}
 TEST_FILE_PATTERNS = [
     "test_*.py", "*_test.py", "conftest.py", "*_test.go",
     *[f"*.test.{e}" for e in ("js", "jsx", "ts", "tsx", "mjs", "cjs")],
@@ -33,6 +34,10 @@ ESCRIBA_GIT = {"log", "status", "show", "diff", "rev-parse", "branch"}
 ESCRIBA_BRANCH_FLAGS = {"--list", "-a", "-r", "--show-current", "-v", "-vv"}
 ESCRIBA_META = (">", "<", "&", ";", "|", "`", "$(", "(", ")", "\n", "\r")
 UUID_CODE = re.compile(r"^\s*import uuid\s*;\s*print\(uuid\.uuid4\(\)\)\s*$")
+
+# Interpretadores cujo `-c <texto>` (ou stdin) também é inspecionado pelas travas de Bash.
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "fish"}
+MAX_NESTING = 5
 
 SHORT_RECURSIVE = re.compile(r"^-[A-Za-z]*[rR][A-Za-z]*$")
 SHORT_FORCE = re.compile(r"^-[A-Za-z]*f[A-Za-z]*$")
@@ -54,6 +59,20 @@ def is_test_path(path: str, cwd: str | None = None) -> bool:
 
 def vault_root() -> Path:
     return Path(__file__).resolve().parents[4]
+
+
+def souls_dir() -> Path:
+    """`99 System/Souls/agents/`, já resolvido (o link second-brain-souls aponta para cá)."""
+    return Path(__file__).resolve().parents[1]
+
+
+def orquestrador_editavel(path: str) -> bool:
+    """O orquestrador só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/`
+    (agentes, settings e hooks do projeto) nem nas souls (`second-brain-souls/`)."""
+    parts = Path(path).parts
+    if ".claude" in parts or "second-brain-souls" in parts:
+        return False
+    return path.endswith(".md") or ".superpowers" in parts
 
 
 def _resolve(path: str, cwd: str) -> str:
@@ -106,9 +125,58 @@ def _git_calls(segs):
                 yield seg[j], seg[j + 1:]
 
 
+class NestingError(Exception):
+    pass
+
+
+def _shell_payload(seg, i):
+    """Para `sh [opções] -c <texto>` começando em seg[i], devolve <texto>.
+    Devolve "" se o shell lê comandos do stdin e None se roda um script."""
+    j, has_c = i + 1, False
+    while j < len(seg):
+        t = seg[j]
+        if t in ("-o", "+o", "-O", "+O"):
+            j += 2
+        elif t.startswith("--"):
+            j += 1
+        elif len(t) > 1 and t[0] in "-+":
+            has_c = has_c or "c" in t[1:]
+            j += 1
+        else:
+            return t if has_c else None
+    return ""
+
+
+def _all_segments(command: str, depth: int = 0) -> list[list[str]]:
+    """Segmentos do comando mais os de `sh -c <texto>` e `eval ...`, recursivamente.
+    Shell lendo do stdin (pipe, here-string): todo token com espaço vira comando também."""
+    if depth > MAX_NESTING:
+        raise NestingError
+    segs = _segments(command)
+    out = list(segs)
+    stdin_shell = False
+    for seg in segs:
+        for i, t in enumerate(seg):
+            inner = None
+            if _base(t) in SHELLS:
+                inner = _shell_payload(seg, i)
+                if inner == "":
+                    stdin_shell, inner = True, None
+            elif _base(t) == "eval" and i + 1 < len(seg):
+                inner = " ".join(seg[i + 1:])
+            if inner:
+                out.extend(_all_segments(inner, depth + 1))
+    if stdin_shell:
+        for seg in segs:
+            for t in seg:
+                if any(c.isspace() for c in t):
+                    out.extend(_all_segments(t, depth + 1))
+    return out
+
+
 def _decide_escriba_bash(command: str):
     toks = _tokens(command)
-    if len(toks) == 3 and toks[0] == "python3" and toks[1] == "-c" and UUID_CODE.match(toks[2]):
+    if toks[:3] == ["python3", "-I", "-c"] and len(toks) == 4 and UUID_CODE.match(toks[3]):
         return None
     if any(m in command for m in ESCRIBA_META):
         return ("Trava do escriba: Bash sem redirecionamento, encadeamento, pipe, subshell ou substituição. "
@@ -150,7 +218,10 @@ def _decide_bash(role: str, command: str):
         msg = _decide_escriba_bash(command)
         if msg:
             return msg
-    segs = _segments(command)
+    try:
+        segs = _all_segments(command)
+    except NestingError:
+        return f"Trava do {role}: comando com shells aninhados demais; bloqueado por segurança."
     if role != "orquestrador" and any(sub == "push" for sub, _ in _git_calls(segs)):
         return f"Trava do {role}: git push não é permitido. Deixe o push para o usuário."
     if role == "revisor":
@@ -172,10 +243,13 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
             return ("Trava do testador: não altera código de produção. "
                     "Aponte o problema no relatório em vez de editar.")
         if role == "orquestrador":
-            parts = Path(path).parts
-            if not (path.endswith(".md") or ".superpowers" in parts):
-                return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/. "
-                        "Delegue a mudança de código ao desenvolvedor.")
+            real = Path(os.path.realpath(path))
+            souls = souls_dir()
+            if real == souls or souls in real.parents:
+                return "Trava do orquestrador: não altera as souls."
+            if not orquestrador_editavel(path) or {".claude", "second-brain-souls"} & set(real.parts):
+                return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
+                        "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor.")
         if role == "escriba":
             if tool_name != "Write":
                 return ("Trava do escriba: só cria notas novas com Write em 00 Inbox/; "

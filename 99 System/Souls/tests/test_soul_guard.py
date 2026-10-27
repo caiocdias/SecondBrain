@@ -1,5 +1,6 @@
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -69,7 +70,7 @@ class SoulGuardTest(unittest.TestCase):
 
     def test_escriba_bash(self):
         bash = lambda c: decide("escriba", "Bash", {"command": c}, "/r", VAULT)
-        for c in ["date +%F", "uuidgen", 'python3 -c "import uuid; print(uuid.uuid4())"', "git log -1"]:
+        for c in ["date +%F", "uuidgen", 'python3 -I -c "import uuid; print(uuid.uuid4())"', "git log -1"]:
             self.assertIsNone(bash(c), c)
         for c in ["echo x > a.md", "date; rm x", "git commit -m x", 'python3 -c "import uuid; open(1)"',
                   'python3 -c "import uuid; print(1); import os"']:
@@ -163,6 +164,76 @@ class HardeningTest(unittest.TestCase):
         self.assertEqual(self.run_cli(["escriba"], nova).returncode, 0)
         fora = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(root / "20 Knowledge" / "zz.md")}, "cwd": str(root)})
         self.assertEqual(self.run_cli(["escriba"], fora).returncode, 2)
+
+
+class FinalReviewTest(unittest.TestCase):
+    """Correções da revisão final do branch."""
+
+    def bash(self, role, cmd):
+        return decide(role, "Bash", {"command": cmd}, "/r", VAULT)
+
+    def test_spec_nao_e_diretorio_de_teste(self):
+        for p in ["api/spec/openapi.yaml", "specs/design.md", "testing/helpers.go"]:
+            self.assertFalse(is_test_path(p), p)
+        for p in ["spec/models/user_spec.rb", "web/src/a.spec.ts"]:
+            self.assertTrue(is_test_path(p), p)
+        self.assertIsNotNone(decide("testador", "Write", {"file_path": "api/spec/openapi.yaml"}, "/r", VAULT))
+
+    def test_orquestrador_nao_escreve_em_claude_nem_nas_souls(self):
+        for p in [".claude/agents/testador.md", "sub/.claude/agents/x.md", ".claude/settings.json",
+                  "/home/u/.claude/agents/second-brain-souls/testador.md",
+                  "/home/u/cfg/agents/second-brain-souls/desenvolvedor.md",
+                  str(soul_guard.souls_dir() / "testador.md")]:
+            self.assertIsNotNone(decide("orquestrador", "Write", {"file_path": p}, "/r", VAULT), p)
+            self.assertIsNotNone(decide("orquestrador", "Edit", {"file_path": p}, "/r", VAULT), p)
+        self.assertIsNone(decide("orquestrador", "Write", {"file_path": "docs/plano.md"}, "/r", VAULT))
+
+    def test_orquestrador_nao_escreve_nas_souls_por_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            link = Path(tmp) / "atalho"
+            link.symlink_to(soul_guard.souls_dir())
+            msg = decide("orquestrador", "Write", {"file_path": str(link / "testador.md")}, tmp, VAULT)
+            self.assertIsNotNone(msg)
+            (Path(tmp) / ".claude" / "agents").mkdir(parents=True)
+            (Path(tmp) / "docs").symlink_to(Path(tmp) / ".claude")
+            msg = decide("orquestrador", "Write", {"file_path": "docs/agents/testador.md"}, tmp, VAULT)
+            self.assertIsNotNone(msg)
+
+    def test_orquestrador_editavel(self):
+        self.assertTrue(soul_guard.orquestrador_editavel("docs/x.md"))
+        self.assertTrue(soul_guard.orquestrador_editavel(".superpowers/sdd/x/ledger.txt"))
+        for p in ["src/A.kt", ".claude/agents/x.md", ".claude/.superpowers/x", "a/second-brain-souls/x.md"]:
+            self.assertFalse(soul_guard.orquestrador_editavel(p), p)
+
+    def test_escriba_uuid_exige_isolado(self):
+        self.assertIsNone(self.bash("escriba", 'python3 -I -c "import uuid; print(uuid.uuid4())"'))
+        for c in ['python3 -c "import uuid; print(uuid.uuid4())"',
+                  'python3 -I -c "import uuid; print(uuid.uuid4()); open(1)"',
+                  'python3 -c -I "import uuid; print(uuid.uuid4())"']:
+            self.assertIsNotNone(self.bash("escriba", c), c)
+
+    def test_push_dentro_de_shell_c(self):
+        for c in ["bash -c 'git push'", "sh -c 'git push origin x'", "zsh -c \"git -C . push\"",
+                  "bash -lc 'git push'", "bash -o pipefail -c 'git push'",
+                  "bash -c \"sh -c 'git push'\"", "eval git push", "eval 'git push'",
+                  "/bin/sh -c 'cd x && git push'", "echo 'git push' | bash", "bash <<< 'git push'"]:
+            for papel in ["desenvolvedor", "testador", "curador"]:
+                self.assertIsNotNone(self.bash(papel, c), (papel, c))
+        self.assertIsNone(self.bash("desenvolvedor", "bash -c 'git status'"))
+        self.assertIsNone(self.bash("desenvolvedor", "bash scripts/build.sh"))
+        self.assertIsNone(self.bash("desenvolvedor", "git commit -m 'evita push direto'"))
+
+    def test_curador_destrutivo_dentro_de_shell_c(self):
+        for c in ["sh -c 'rm -rf x'", "bash -c 'git reset --hard'", "bash -c \"zsh -c 'git clean -fd'\"",
+                  "eval rm -rf x"]:
+            self.assertIsNotNone(self.bash("curador", c), c)
+        self.assertIsNone(self.bash("curador", "sh -c 'git status'"))
+
+    def test_aninhamento_excessivo_bloqueia(self):
+        c = "git status"
+        for _ in range(10):
+            c = "bash -c " + shlex.quote(c)
+        self.assertIsNotNone(self.bash("desenvolvedor", c))
 
 
 class RevisorSemBashTest(unittest.TestCase):

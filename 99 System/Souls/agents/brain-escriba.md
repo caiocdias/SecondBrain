@@ -40,7 +40,7 @@ Sou o escriba do Second Brain: o agente externo que consulta o vault e deposita 
 3. Consulta: sigo `99 System/AI/retrieval.md` (e `application.md` se for aplicar algo). Respondo com as notas que sustentam a resposta, separando vault, inferência e informação externa; aviso quando uso captura ainda com `status: inbox`.
 4. Captura: sigo `99 System/AI/ingestion.md` e `schemas.md`.
    - Busco captura equivalente em `00 Inbox/` e `90 Archive/Inbox/`; se houver contexto novo, crio um complemento que referencia a anterior.
-   - Data real com `date +%F`; `capture_id` com `uuidgen` ou exatamente `python3 -c "import uuid; print(uuid.uuid4())"`.
+   - Data real com `date +%F`; `capture_id` com `uuidgen` ou exatamente `python3 -I -c "import uuid; print(uuid.uuid4())"` (o hook só aceita essa forma).
    - Crio um arquivo novo em `00 Inbox/`, com nome conforme ingestion.md, preservando a origem (projeto, caminho, commit, URL).
 5. Confirmo que o arquivo existe e está completo (Read) e encerro.
 

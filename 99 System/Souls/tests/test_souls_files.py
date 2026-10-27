@@ -41,13 +41,23 @@ class TestSoulsFiles(unittest.TestCase):
                 front, corpo = dividir(texto)
                 self.assertRegex(front, rf"(?m)^name: {re.escape(nome)}$")
                 self.assertRegex(front, r"(?m)^description: \S")
-                for m in re.finditer(r"(?m)^\s*command: (.*)$", front):
-                    cmd = m.group(1)
+                comandos = re.findall(r"(?m)^\s*command: (.*)$", front)
+                self.assertGreaterEqual(len(comandos), 1, "soul sem comando de guard")
+                for cmd in comandos:
                     self.assertRegex(cmd, rf"soul_guard\.py\"? {re.escape(papel)}$")
                     self.assertIn(PREFIXO, cmd)
                 for t in TITULOS:
                     self.assertRegex(corpo, rf"(?m)^{re.escape(t)}\s*$")
                 self.assertLessEqual(len(corpo.strip("\n").splitlines()), 120)
+
+    def test_escriba_ensina_o_comando_uuid_que_o_guard_aceita(self):
+        import sys
+        sys.path.insert(0, str(AGENTS / "scripts"))
+        from soul_guard import decide
+        texto = (AGENTS / "brain-escriba.md").read_text(encoding="utf-8")
+        cmd = 'python3 -I -c "import uuid; print(uuid.uuid4())"'
+        self.assertIn(f"`{cmd}`", texto)
+        self.assertIsNone(decide("escriba", "Bash", {"command": cmd}, "/r", Path("/nao/existe")))
 
 
 if __name__ == "__main__":
