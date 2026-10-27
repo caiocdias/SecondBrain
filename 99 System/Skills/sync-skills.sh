@@ -10,6 +10,9 @@
 # 4. Plugin de marketplace instalado no escopo de usuário e ausente de plugins.txt é acrescentado.
 #    O registro só cresce: remoções são feitas à mão.
 #
+# 5. ~/.claude/agents/second-brain-souls é um único link para 99 System/Souls/agents (as souls do vault).
+#    Link para outro lugar ou diretório real nesse nome é conflito e não é alterado.
+#
 # ~/.claude/skills/synced/ (skills sincronizadas do claude.ai) é gerenciado pelo Claude Code e fica de fora.
 
 set -u
@@ -18,6 +21,8 @@ VAULT_SKILLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 USER_SKILLS="$CONFIG_DIR/skills"
 PLUGINS_FILE="$VAULT_SKILLS/plugins.txt"
+VAULT_SOULS="$(dirname "$VAULT_SKILLS")/Souls/agents"
+SOULS_LINK="$CONFIG_DIR/agents/second-brain-souls"
 
 is_skill_dir() { [ -f "$1/SKILL.md" ] || [ -f "$1/.claude-plugin/plugin.json" ]; }
 
@@ -62,6 +67,17 @@ for link in "$USER_SKILLS"/*; do
     "$VAULT_SKILLS"/*) rm "$link" ;;
   esac
 done
+
+souls_linked=0
+if [ -d "$VAULT_SOULS" ]; then
+  if [ -L "$SOULS_LINK" ]; then
+    [ "$(readlink "$SOULS_LINK")" = "$VAULT_SOULS" ] || conflicts+=("agents/second-brain-souls")
+  elif [ -e "$SOULS_LINK" ]; then
+    conflicts+=("agents/second-brain-souls")
+  elif mkdir -p "$CONFIG_DIR/agents" && ln -s "$VAULT_SOULS" "$SOULS_LINK"; then
+    souls_linked=1
+  fi
+fi
 
 # Lista "<plugin>@<marketplace> <origem do marketplace>" dos plugins de escopo de usuário.
 list_user_plugins() {
@@ -124,6 +140,7 @@ done < <(list_user_plugins)
 msg=""
 [ ${#moved[@]} -gt 0 ] && msg+="Skills movidas para o Second Brain: ${moved[*]}. "
 [ ${#linked[@]} -gt 0 ] && msg+="Skills do Second Brain ativadas: ${linked[*]}. "
+[ "$souls_linked" -eq 1 ] && msg+="Souls do Second Brain ativadas. "
 [ ${#registered[@]} -gt 0 ] && msg+="Plugins registrados no Second Brain: ${registered[*]}. "
 [ ${#conflicts[@]} -gt 0 ] && msg+="Conflito de nome entre ~/.claude/skills e o vault (resolver à mão): ${conflicts[*]}. "
 [ ${#notes[@]} -gt 0 ] && msg+="Aviso: ${notes[*]}. "

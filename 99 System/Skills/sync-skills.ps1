@@ -11,6 +11,9 @@
 # 4. Plugin de marketplace instalado no escopo de usuário e ausente de plugins.txt é acrescentado.
 #    O registro só cresce: remoções são feitas à mão.
 #
+# 5. ~/.claude/agents/second-brain-souls é um único link para 99 System/Souls/agents (as souls do vault).
+#    Link para outro lugar ou diretório real nesse nome é conflito e não é alterado.
+#
 # ~/.claude/skills/synced/ (skills sincronizadas do claude.ai) é gerenciado pelo Claude Code e fica de fora.
 
 $ErrorActionPreference = 'Continue'
@@ -20,6 +23,8 @@ $VaultSkills = $PSScriptRoot
 $ConfigDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
 $UserSkills = Join-Path $ConfigDir 'skills'
 $PluginsFile = Join-Path $VaultSkills 'plugins.txt'
+$VaultSouls = Join-Path (Split-Path -Parent $VaultSkills) 'Souls\agents'
+$SoulsLink = Join-Path (Join-Path $ConfigDir 'agents') 'second-brain-souls'
 $OnWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
 $Utf8 = New-Object Text.UTF8Encoding $false
 
@@ -102,6 +107,20 @@ foreach ($item in Get-ChildItem -LiteralPath $UserSkills -Force) {
   }
 }
 
+$soulsLinked = $false
+if (Test-Path -LiteralPath $VaultSouls) {
+  $existing = Get-Item -LiteralPath $SoulsLink -Force -ErrorAction SilentlyContinue
+  if ($existing) {
+    if (-not (Test-Link $existing) -or ((Get-LinkTarget $existing) -ne $VaultSouls)) { $conflicts += 'agents/second-brain-souls' }
+  } else {
+    try {
+      New-Item -ItemType Directory -Force -Path (Split-Path -Parent $SoulsLink) | Out-Null
+      New-SkillLink $SoulsLink $VaultSouls
+      $soulsLinked = $true
+    } catch { $failed += 'agents/second-brain-souls' }
+  }
+}
+
 $installed = Read-Json (Join-Path $ConfigDir 'plugins\installed_plugins.json')
 $known = Read-Json (Join-Path $ConfigDir 'plugins\known_marketplaces.json')
 if ($installed -and $installed.plugins) {
@@ -137,6 +156,7 @@ if ($installed -and $installed.plugins) {
 $msg = @()
 if ($moved) { $msg += "Skills movidas para o Second Brain: $($moved -join ' ')." }
 if ($linked) { $msg += "Skills do Second Brain ativadas: $($linked -join ' ')." }
+if ($soulsLinked) { $msg += "Souls do Second Brain ativadas." }
 if ($registered) { $msg += "Plugins registrados no Second Brain: $($registered -join ' ')." }
 if ($conflicts) { $msg += "Conflito de nome entre ~/.claude/skills e o vault (resolver à mão): $($conflicts -join ' ')." }
 if ($failed) { $msg += "Falha ao sincronizar: $($failed -join ' ')." }
