@@ -6,14 +6,16 @@ Souls não são conhecimento pessoal: não entram em buscas de conteúdo nem no 
 
 ## As seis souls
 
-| Soul | Onde roda | Papel | Trava principal |
-|---|---|---|---|
-| `orquestrador-etapa` | sessão principal: `claude --agent orquestrador-etapa` | Planeja (`superpowers:writing-plans`), executa a etapa com `superpowers:subagent-driven-development`, despacha as outras souls, roda a verificação mecânica dos testes e os scanners de dependência. | Não escreve código nem teste; só despacha as souls listadas em `Agent(...)`. |
-| `desenvolvedor` | subagente, por tarefa | Implementa com TDD, seguindo o prompt implementer do superpowers. | Não altera nem apaga testes do testador. |
-| `testador` | subagente, depois de cada tarefa | Analisa, ataca e completa a suíte de testes. | Só acrescenta testes; não toca em código de produção. |
-| `revisor-seguranca` | subagente, em cada tarefa e na revisão final | Revisa segurança, supply chain, boas práticas e integridade dos testes. | Sem `Edit`, `Write` nem Bash: só lê e julga. O orquestrador roda os scanners e anexa as saídas ao pacote de revisão. |
-| `brain-escriba` | subagente, em projetos fora do vault | Consulta o brain e publica capturas em `00 Inbox/`. | Só lê o vault e só cria arquivos novos na Inbox. |
-| `brain-curador` | sessão principal no vault: `claude --agent brain-curador` | Opera o vault em modo curador (processa a Inbox, integra, faz manutenção). | Política de mutação do vault; sem `push`. |
+Cada soul tem três camadas de proteção, de força diferente: o **bloqueio duro** (ferramenta ausente ou hook `soul_guard.py`) impede a ação na hora; a **auditoria** (`check_test_integrity.py`, rodada pelo orquestrador) aponta depois, pelos commits, o que o bloqueio não alcança; o **julgamento** (a `revisor-seguranca`, ou o usuário) decide sobre cada apontamento.
+
+| Soul | Onde roda | Papel | Bloqueio duro | Auditoria e julgamento |
+|---|---|---|---|---|
+| `orquestrador-etapa` | sessão principal: `claude --agent orquestrador-etapa` | Planeja (`superpowers:writing-plans`), executa a etapa com `superpowers:subagent-driven-development`, despacha as outras souls, roda a verificação mecânica dos testes e os scanners de dependência. | Hook: só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/` nem nas souls. `Agent(...)` só despacha as souls listadas. | `ORQUESTRADOR_CODIGO` para commits dele fora disso; a revisora julga. |
+| `desenvolvedor` | subagente, por tarefa | Implementa com TDD, seguindo o prompt implementer do superpowers. | Sem `Agent`; hook barra `git push`. | `DEV_TESTE_DO_TESTADOR`, `TESTE_REMOVIDO`, `ASSERCAO_REMOVIDA` e `SKIP_ADICIONADO` apontam mexida em testes; a revisora julga. |
+| `testador` | subagente, depois de cada tarefa | Analisa, ataca e completa a suíte de testes. | Hook: Edit, Write e NotebookEdit só em caminhos de teste; sem `Agent`; hook barra `git push`. | `TESTADOR_PRODUCAO` aponta código de produção alterado por outros meios (Bash, por exemplo), além das regras de testes removidos ou pulados; a revisora julga. |
+| `revisor-seguranca` | subagente, em cada tarefa e na revisão final | Revisa segurança, supply chain, boas práticas e integridade dos testes. | Ferramentas só de leitura: sem `Edit`, `Write` nem Bash. O orquestrador roda os scanners e anexa as saídas ao pacote de revisão. | O veredito dela vai ao orquestrador e, nas decisões do protocolo, ao usuário. |
+| `brain-escriba` | subagente, em projetos fora do vault | Consulta o brain e publica capturas em `00 Inbox/`. | Hook: Write só cria arquivo novo em `00 Inbox/`; Bash só com `date`, `uuidgen`, `ls`, `pwd`, git de leitura e a geração de uuid. | O curador avalia cada captura ao processar a Inbox. |
+| `brain-curador` | sessão principal no vault: `claude --agent brain-curador` | Opera o vault em modo curador (processa a Inbox, integra, faz manutenção). | Hook barra `git push`, `git reset --hard`, `git clean -f` e `rm -rf`. | Política de mutação do vault: mudanças estruturais, de schema ou de regra dependem do usuário. |
 
 ## Como usar
 
@@ -27,9 +29,9 @@ O `sync-skills` (`sync-skills.sh` no Linux e no macOS, `sync-skills.ps1` no Wind
 
 ## Travas e scripts
 
-- [`agents/scripts/soul_guard.py`](agents/scripts/soul_guard.py): hook `PreToolUse` declarado no frontmatter de cada soul (`soul_guard.py <papel>`). Bloqueia na hora o que o papel não pode fazer (por exemplo, o testador editar fora de arquivos de teste, qualquer papel exceto o orquestrador fazer `git push`, o escriba escrever fora de `00 Inbox/`). Falha fechada: papel ausente ou inválido bloqueia.
-- [`agents/scripts/check_test_integrity.py`](agents/scripts/check_test_integrity.py): verificação mecânica da integridade dos testes (testes removidos ou pulados, asserções enfraquecidas, testes do testador alterados pelo desenvolvedor, código de produção alterado pelo testador). Rodada pelo orquestrador; a saída entra no pacote de revisão. Atribui commits a papéis pelo trailer `Soul: <nome-da-soul>`, que todo commit feito por uma soul carrega.
-- Testes: `python3 -I -m unittest discover -s "99 System/Souls/tests"` e `bash "99 System/Souls/tests/test_sync_souls.sh"`.
+- [`agents/scripts/soul_guard.py`](agents/scripts/soul_guard.py): hook `PreToolUse` declarado no frontmatter de cada soul (`soul_guard.py <papel>`). Bloqueia na hora o que o papel não pode fazer (por exemplo, o testador editar fora de arquivos de teste, qualquer papel exceto o orquestrador fazer `git push`, o escriba escrever fora de `00 Inbox/`); as regras de Bash também olham dentro de `bash -c`, `sh -c`, `eval` e de shells alimentados por pipe. Diretórios `spec/`, `specs/` e `testing/` não contam como teste; specs de RSpec contam pelo nome (`*_spec.rb`). Falha fechada: papel ausente ou inválido bloqueia.
+- [`agents/scripts/check_test_integrity.py`](agents/scripts/check_test_integrity.py): verificação mecânica da integridade dos testes (testes removidos ou pulados, asserções enfraquecidas, testes do testador alterados pelo desenvolvedor, código de produção alterado pelo testador, código alterado pelo orquestrador). Avisos (commit sem trailer, trailer desconhecido, merge, `.gitattributes`) também vão à revisora para justificar. Rodada pelo orquestrador; a saída entra no pacote de revisão. Atribui commits a papéis pelo trailer `Soul: <nome-da-soul>`, que todo commit feito por uma soul carrega.
+- Testes: `python3 -I -m unittest discover -s "99 System/Souls/tests"` e `bash "99 System/Souls/tests/test_sync_souls.sh"`. O teste de fumaça `bash "99 System/Souls/tests/smoke_souls.sh"` chama o Claude de verdade (consome tokens) e roda só à mão.
 
 ## Criar uma soul nova
 

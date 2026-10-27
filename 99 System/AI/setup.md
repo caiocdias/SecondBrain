@@ -34,7 +34,7 @@ A máquina está configurada quando os itens abaixo existem e apontam para o cam
 4. Cada plugin de `99 System/Skills/plugins.txt` aparece em `claude plugin list`.
 5. `~/.claude/agents/second-brain-souls` existe como link para `99 System/Souls/agents` do vault.
 6. `python3 --version` responde.
-7. `osv-scanner --version` responde (opcional; sem ele a soul `revisor-seguranca` declara a lacuna).
+7. `osv-scanner --version` responde (opcional; sem um scanner que cubra o stack do projeto, a revisão final da etapa bloqueia e a soul `revisor-seguranca` recomenda o scanner do stack).
 
 Se algum item faltar ou apontar para outro caminho (vault movido), a sessão curadora informa o usuário e executa o procedimento após confirmação.
 
