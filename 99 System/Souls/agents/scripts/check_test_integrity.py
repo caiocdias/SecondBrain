@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from soul_guard import is_test_path  # noqa: E402
+from soul_guard import is_test_path, orquestrador_editavel  # noqa: E402
 
 DECL = [r"@Test\b", r"^\s*def test_", r"^\s*(async\s+)?(it|test)\s*\(", r"^\s*func Test"]
 ASSERT = [r"\bassert", r"\bexpect\s*\(", r"assertThat", r"\bverify\s*\(", r"\.should"]
@@ -23,7 +23,7 @@ ASSERT_RE = [re.compile(p) for p in ASSERT]
 SKIP_RE = [re.compile(p) for p in SKIP]
 
 
-# Todas as souls; só testador e desenvolvedor têm regras próprias aqui.
+# Todas as souls; testador, desenvolvedor e orquestrador-etapa têm regras próprias aqui.
 KNOWN_SOULS = {"orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca",
                "brain-escriba", "brain-curador"}
 
@@ -131,6 +131,11 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
                     testador_tests.add(f)
                 else:
                     findings.append(f"[TESTADOR_PRODUCAO] {short} {f}: testador alterou arquivo que não é de teste")
+        if "orquestrador-etapa" in souls:
+            for f in files:
+                if not orquestrador_editavel(f):
+                    findings.append(f"[ORQUESTRADOR_CODIGO] {short} {f}: orquestrador alterou arquivo fora de "
+                                    ".md e .superpowers/, ou sob .claude/ ou nas souls")
         if "desenvolvedor" in souls:
             for f in files:
                 if f in testador_tests:
