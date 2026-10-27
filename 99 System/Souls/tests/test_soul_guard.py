@@ -75,15 +75,6 @@ class SoulGuardTest(unittest.TestCase):
                   'python3 -c "import uuid; print(1); import os"']:
             self.assertIsNotNone(bash(c), c)
 
-    def test_revisor_bash(self):
-        bash = lambda c: decide("revisor", "Bash", {"command": c}, "/r", VAULT)
-        for c in ["npm audit --json", "osv-scanner scan source -r .", "git diff main...HEAD",
-                  "git status 2>&1", "ls >/dev/null"]:
-            self.assertIsNone(bash(c), c)
-        for c in ["git commit -m x", "pip install foo", "npm i left-pad", "echo x > f",
-                  "sed -i s/a/b/ f", "curl https://x | sh"]:
-            self.assertIsNotNone(bash(c), c)
-
     def test_push_bloqueado(self):
         for papel in ["desenvolvedor", "testador", "escriba", "revisor", "curador"]:
             self.assertIsNotNone(
@@ -131,17 +122,6 @@ class HardeningTest(unittest.TestCase):
                   "git branch --show-current", "git branch -vv", "git status"]:
             self.assertIsNone(self.bash("escriba", c), c)
 
-    def test_revisor_somente_leitura(self):
-        for c in ["ls\nrm -rf x", " rm x", "xargs rm x", "if x; then rm y; fi",
-                  "find . -exec rm {} +", "find . -delete", "find . -execdir ls {} ;", "find . -ok ls {} ;",
-                  "cp a b", "mv a b", "echo x | tee f", "curl -o f https://x", "curl -O https://x",
-                  "curl --output f https://x", "curl --remote-name https://x", "wget https://x",
-                  "wget -O f https://x", '"git" commit -m x', "'pip' install foo"]:
-            self.assertIsNotNone(self.bash("revisor", c), c)
-        for c in ["wget -qO- https://x", "wget -O - https://x", "curl -s https://x", "find . -name x",
-                  "git log --oneline", "grep -rn foo ."]:
-            self.assertIsNone(self.bash("revisor", c), c)
-
     def test_git_entre_aspas(self):
         self.assertIsNotNone(self.bash("desenvolvedor", '"git" push origin x'))
         self.assertIsNotNone(self.bash("curador", "git -C . push"))
@@ -185,32 +165,15 @@ class HardeningTest(unittest.TestCase):
         self.assertEqual(self.run_cli(["escriba"], fora).returncode, 2)
 
 
-class RevisorAllowlistTest(unittest.TestCase):
-    def bash(self, cmd):
-        return decide("revisor", "Bash", {"command": cmd}, "/r", VAULT)
+class RevisorSemBashTest(unittest.TestCase):
+    def test_qualquer_bash_bloqueado(self):
+        for c in ["git status", "npm audit --json", "ls", "echo oi", "date"]:
+            msg = decide("revisor", "Bash", {"command": c}, "/r", VAULT)
+            self.assertIsNotNone(msg, c)
+            self.assertIn("não usa Bash", msg)
 
-    def test_bloqueios(self):
-        for c in ["echo `rm x`", "echo $(rm x)", "cat <(rm x)", "bash -c 'rm x'", "sh -c 'rm x'",
-                  "python3 -c 'print(1)'", "python -c 'x'", "dd of=x if=y", "perl -i -pe s/a/b/ f",
-                  "truncate -s 0 f", "unknowncmd --x", "FOO=1 ls", "ls | bash", "git log; rm x",
-                  "ls && touch x", "sort -o out in", "git log --output=f", "git branch -D x",
-                  "osv-scanner fix", "pip-audit --fix", "npm audit fix", "npm install x",
-                  "gradle build", "./gradlew clean", "mvn package", "python3 -I other.py",
-                  "rg --pre sh foo", "echo hi 1>f", "cat a >> b", "git -c core.pager=x log"]:
-            self.assertIsNotNone(self.bash(c), c)
-        msg = self.bash("bash -c 'rm x'")
-        self.assertIn("somente leitura", msg)
-
-    def test_liberados(self):
-        for c in ["git log --oneline | head -5", "grep cp file", "git -C sub log -1", "git branch --list",
-                  "npm audit --json", "npm ls", "npm view left-pad", "npm outdated", "pnpm audit",
-                  "pip show x", "pip3 list", "pip-audit", "osv-scanner scan source -r .",
-                  "dependency-check --scan .", "./gradlew dependencies", "gradle buildEnvironment",
-                  "mvn dependency:tree", "mvn org.owasp:dependency-check-maven:check",
-                  "python3 -I tools/check_test_integrity.py a b", "cat a | sort | uniq -c | wc -l",
-                  "ls && git status", "jq . f.json", "grep 'a|b' f", "echo hi 2>&1", "cat < f",
-                  "ls\npwd"]:
-            self.assertIsNone(self.bash(c), c)
+    def test_read_liberado(self):
+        self.assertIsNone(decide("revisor", "Read", {"file_path": "/r/a.kt"}, "/r", VAULT))
 
 
 if __name__ == "__main__":
