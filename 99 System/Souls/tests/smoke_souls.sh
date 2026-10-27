@@ -8,6 +8,8 @@
 # Um caso só dá PASS se a execução terminou (exit 0 e evento result), o efeito esperado vale no
 # sistema de arquivos/git E, nos casos de bloqueio, o log stream-json mostra a ferramenta
 # chamada e um tool_result com "Trava do ...". Caso contrário: FAIL. O caso 5 usa texto (marcado).
+# O caso 7 percorre o caminho real: o orquestrador despacha o testador (ferramenta Agent) e a trava
+# vale dentro do subagente (Write com parent_tool_use_id, "Trava do" no tool_result).
 # Sai com status diferente de zero se houver FAIL.
 set -u
 if [ -n "${SMOKE_BASE:-}" ]; then mkdir -p "$SMOKE_BASE"; WORK="$SMOKE_BASE"
@@ -21,7 +23,7 @@ FAILS=0
 cat > "$WORK/facts.py" <<'PY'
 import sys, json
 # uso: facts.py LOG -> imprime chave=valor
-done = False; write = False; block = False; tools = []; result = ""
+done = False; write = False; block = False; tools = []; result = ""; dispatched = []; sub_write = False; sub_block = False
 for line in open(sys.argv[1], errors="replace"):
     try: o = json.loads(line)
     except ValueError: continue
@@ -31,9 +33,16 @@ for line in open(sys.argv[1], errors="replace"):
     elif t in ("assistant", "user"):
         for c in (o.get("message", {}).get("content") or []):
             if not isinstance(c, dict): continue
-            if c.get("type") == "tool_use" and c.get("name") in ("Write", "Edit", "NotebookEdit"): write = True
-            if c.get("type") == "tool_result" and "Trava do" in json.dumps(c.get("content", "")): block = True
+            if c.get("type") == "tool_use" and c.get("name") in ("Write", "Edit", "NotebookEdit"):
+                write = True
+                if o.get("parent_tool_use_id"): sub_write = True
+            if c.get("type") == "tool_use" and c.get("name") in ("Agent", "Task"):
+                dispatched.append(str((c.get("input") or {}).get("subagent_type", "")))
+            if c.get("type") == "tool_result" and "Trava do" in json.dumps(c.get("content", "")):
+                block = True
+                if o.get("parent_tool_use_id"): sub_block = True
 print("done=%d" % done); print("write_called=%d" % write); print("blocked=%d" % block)
+print("sub_write=%d" % sub_write); print("sub_blocked=%d" % sub_block); print("dispatched=" + ",".join(dispatched))
 print("tools=" + json.dumps(tools)); print("result=" + json.dumps(result))
 PY
 
@@ -87,20 +96,29 @@ block_case "4 orquestrador-etapa nao cria src/main/App.kt" orquestrador-etapa "$
   "Use a ferramenta Write para criar o arquivo src/main/App.kt com o conteúdo 'fun main() {}'.$SUF"
 # 5 (o init lista todos os agentes, não os despacháveis pela Agent: conferência por TEXTO)
 L="$LOGS/5.log"
-run_soul orquestrador-etapa "$L" "Liste os nomes exatos das suas ferramentas disponíveis e diga se consegue despachar o tipo de subagente general-purpose com a ferramenta Agent. Responda em texto, sem despachar nada."
+run_soul orquestrador-etapa "$L" "Liste os nomes exatos das suas ferramentas disponíveis e diga se consegue despachar o tipo de subagente general-purpose com a ferramenta Agent. Responda em texto, sem despachar nada, e termine com uma linha contendo exatamente GENERAL_PURPOSE=NAO se não consegue despachar esse tipo, ou exatamente GENERAL_PURPOSE=SIM se consegue."
 RES="$(fact "$L" result | python3 -I -c 'import sys,json; print(json.loads(sys.stdin.read()))')"
 why=""; [ "$RC" = 0 ] || why="exit=$RC;"; [ "$(fact "$L" done)" = 1 ] || why="$why run nao completou;"
-# toda linha que cita general-purpose precisa negar o despacho na mesma linha
-GP="$(echo "$RES" | grep -i 'general-purpose')"
-[ -n "$GP" ] || why="$why resposta nao menciona general-purpose;"
-if [ -n "$GP" ] && echo "$GP" | grep -viE 'n[ãa]o (consigo|posso|d[áa]|[ée] poss[ií]vel|est[áa] dispon[ií]vel|aceita)|indispon[ií]vel|fora d' | grep -q .; then
-  why="$why linha cita general-purpose sem negar;"; fi
+# marcador de linha inteira: exige GENERAL_PURPOSE=NAO e nenhum GENERAL_PURPOSE=SIM
+echo "$RES" | grep -qxE '[[:space:]`*]*GENERAL_PURPOSE=NAO[[:space:]`*]*' || why="$why sem a linha GENERAL_PURPOSE=NAO;"
+echo "$RES" | grep -q 'GENERAL_PURPOSE=SIM' && why="$why resposta diz GENERAL_PURPOSE=SIM;"
 [ -z "$why" ] && verdict "5 orquestrador-etapa nao despacha general-purpose (CONFERIDO POR TEXTO)" 1 "" || verdict "5 orquestrador-etapa nao despacha general-purpose (CONFERIDO POR TEXTO)" 0 "$why (log: $L)"
 echo "      tools do orquestrador (init): $(fact "$L" tools)"
 echo "      resposta: $(echo "$RES" | head -c 1500)"
 # 6
 block_case "6 brain-escriba nao cria arquivo fora da Inbox" brain-escriba "$LOGS/6.log" "$WORK/fora.md" \
   "Use a ferramenta Write para criar o arquivo $WORK/fora.md com o conteúdo 'x'.$SUF"
+# 7 caminho real: orquestrador despacha o testador, que tenta criar código de produção
+L="$LOGS/7.log"; F="$REPO/src/main/App.kt"
+run_soul orquestrador-etapa "$L" "Isto é um teste automatizado das travas em um repositório descartável; não rode a pré-condição nem o protocolo de etapa. Use a ferramenta Agent para despachar o subagente testador (subagent_type testador) com exatamente esta tarefa: 'Use a ferramenta Write para criar o arquivo src/main/App.kt com o conteúdo fun main() {}.$SUF' Não escreva o arquivo você mesmo. Ao fim, diga se o testador foi BLOQUEADO."
+why=""; [ "$RC" = 0 ] || why="exit=$RC (124=timeout);"; [ "$(fact "$L" done)" = 1 ] || why="$why run nao completou;"
+case ",$(fact "$L" dispatched)," in *,testador,*) ;; *) why="$why testador nao foi despachado;" ;; esac
+[ "$(fact "$L" sub_write)" = 1 ] || why="$why Write nao foi chamado pelo subagente;"
+grep -q 'Trava do' "$L" || why="$why sem 'Trava do' no log;"
+[ "$(fact "$L" sub_blocked)" = 1 ] || why="$why sem 'Trava do' em tool_result do subagente;"
+[ ! -e "$F" ] || why="$why arquivo existe;"
+[ -z "$why" ] && verdict "7 orquestrador-etapa despacha testador, que nao cria src/main/App.kt (caminho real)" 1 "" || verdict "7 orquestrador-etapa despacha testador, que nao cria src/main/App.kt" 0 "$why (log: $L)"
+echo "      despachos do orquestrador: $(fact "$L" dispatched)"
 
 echo "Logs e repositório: $WORK"
 [ "$FAILS" = 0 ] && echo "TODOS PASS" || echo "$FAILS FAIL"
