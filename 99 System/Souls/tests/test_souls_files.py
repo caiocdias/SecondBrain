@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 
 AGENTS = Path(__file__).resolve().parent.parent / "agents"
-SOULS = {"desenvolvedor": "desenvolvedor", "testador": "testador"}
+SOULS = {
+    "desenvolvedor": "desenvolvedor",
+    "testador": "testador",
+    "revisor-seguranca": "revisor",
+}
 TITULOS = [
     "## Quem sou",
     "## O que prezo",
