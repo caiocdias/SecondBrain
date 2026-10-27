@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Schemas e migrações - 877877fd]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Schemas, migrações e views de relatório
 
@@ -41,6 +43,22 @@ Passo a passo para um módulo novo persistir dados:
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E06 — recados (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- Schema novo: `frontdesk`, a partir do M5 E06, com a tabela `trace`, `GRANT` no modelo do `reservations` e exclusão física proibida por trigger. A migração `V2026_10_23_1200` teve só o comentário alterado antes da integração. Um banco local que já a aplicou precisa de `flyway repair`.
+
+Segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]], a necessidade de `flyway repair` continua valendo.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Schemas e migrações - 877877fd]] (capture_id: 877877fd-ab36-4aea-ad85-f3f152e7f81a): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 83–105, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]] (capture_id: c3d1beeb-2076-413c-af63-4e1e43af516f): schema `frontdesk` e a migração `V2026_10_23_1200`.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): pendência do `flyway repair` mantida.

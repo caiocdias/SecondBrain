@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Módulo billing - caixa, pagamentos, caução e encerramento - 1da9ffd1]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Módulo billing (caixa, pagamentos, caução e encerramento)
 
@@ -61,6 +63,21 @@ Texto literal do `CLAUDE.md` do repositório, linhas 318–360, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E04 — check-out (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- `BillingApi.unsettledCardPreAuthorizations(folioId)` (M5 E04, H12): as cauções nem capturadas por inteiro nem liberadas, por id, com a situação calculada agora (inclusive `EXPIRED`). Sem trava e sem permissão; conta inexistente devolve lista vazia.
+- `BillingApi.releaseCardPreAuthorization(folioId, id)`: as regras de `…/release` menos a permissão, auditada `billing.card-pre-authorization.release`, na transação de quem chama. Trava a conta e depois a caução; vale com a conta encerrada e depois da validade. Já encerrada: `409 PRE_AUTHORIZATION_SETTLED`. De outra conta: `404 PRE_AUTHORIZATION_NOT_FOUND`.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo billing - caixa, pagamentos, caução e encerramento - 1da9ffd1]] (capture_id: 1da9ffd1-f4d8-4ea9-8a65-700ce8cd0024): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 318–360, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]] (capture_id: 23ba6833-5674-4a22-aacd-3a26bf55f9bf): `BillingApi.unsettledCardPreAuthorizations` e `BillingApi.releaseCardPreAuthorization`.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): integração da E04 à `main` (`4a91340`).

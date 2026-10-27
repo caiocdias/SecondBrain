@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Módulo billing - contas, roteamento e taxa de serviço - c6398a76]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Módulo billing (contas, roteamento e taxa de serviço)
 
@@ -50,6 +52,25 @@ Texto literal do `CLAUDE.md` do repositório, linhas 286–317, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E04 — check-out (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- **Lançamento idempotente** (M5 E04, H14):
+  - `NewPosting.sourceReference` é opcional, com o mesmo valor em `PostingSummary.sourceReference`.
+  - No banco: coluna `billing.posting.source_reference`, `CHECK posting_source_reference_ck` (`^[A-Za-z0-9._:-]{1,200}$`) e índice único parcial `posting_source_reference_uk`, na migração `billing/V2026_10_22_2330__add_posting_source_reference.sql`.
+  - Com uma chave já gravada, a `BillingApi.post` devolve o lançamento existente, com a taxa de serviço dele, sem gravar nem auditar (`audit.noChanges()`), mesmo com a conta encerrada. A busca roda sob a trava da conta pedida, depois do roteamento e antes do `requireOpen`. Chave inválida: `400 POSTING_INVALID`, campo `sourceReference`.
+  - A API HTTP de lançamentos não mudou.
+- **Nota obrigatória para o M6:** o fechamento usa a **mesma chave** do check-out, separa os inclusos da hospedagem e lança os inclusos sem taxa de serviço. A repetição é silenciosa: o lançamento existente volta mesmo se o valor pedido for outro, então confira o valor no M6.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo billing - contas, roteamento e taxa de serviço - c6398a76]] (capture_id: c6398a76-eef1-4a2b-88bc-a7f9befa072c): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 286–317, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]] (capture_id: 23ba6833-5674-4a22-aacd-3a26bf55f9bf): lançamento idempotente por `sourceReference` e a nota obrigatória para o M6.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): integração da E04 à `main` (`4a91340`).

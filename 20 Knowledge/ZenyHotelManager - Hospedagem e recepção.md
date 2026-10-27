@@ -6,10 +6,14 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Hospedagem e recepção (frontdesk) - 33c65c3f]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Hospedagem e recepção
 
-Referência técnica do projeto [[ZenyHotelManager]]: transições de hospedagem no reservations e o módulo frontdesk (check-in orquestrado e walk-in).
+Referência técnica do projeto [[ZenyHotelManager]]: transições de hospedagem no reservations e o módulo frontdesk (check-in orquestrado, walk-in, check-out, troca de UH, early check-in e recados).
 
 Texto literal do `CLAUDE.md` do repositório, linhas 486–509, no commit `a6c0f03` (2026-10-22), escrito pelos agentes que executaram as etapas M0 E01 a M5 E03; integrado sem resumo nem reescrita. Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn" e "Mx Ey" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md` e `docs/roadmaps/` do repositório; menções a uma seção (por exemplo, seção "Transições de hospedagem") apontam para outra parte do antigo `CLAUDE.md`, hoje numa das notas de tema listadas no hub. Mudanças posteriores chegam por capturas "ZenyHotelManager - atualização Mx Ey" (fluxo no hub).
 
@@ -42,6 +46,108 @@ Texto literal do `CLAUDE.md` do repositório, linhas 486–509, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E04 — check-out (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- **Recepção: check-out** (RF-REC-06 sem nota fiscal nem contas a receber, RN-06, RN-09, RN-11, H12 a H14 do M5, M5 E04). Caso de uso `frontdesk/application/CheckOutService.kt` (`FrontdeskCheckOutService`), regras puras em `frontdesk/domain/CheckOutRules.kt` (`StayCharges`, `StayCharge`, `LateCheckOutRules`, `StayNotSettledException`, `EarlyLateFeeChangedException`) e `StayRules.requireCheckOut`. Sem estado próprio.
+  - **Endpoint:** `POST /api/v1/reservations/{id}/check-out` (`@Idempotent`, `frontdesk.stays.checkout`, Gerente e Recepcionista, não sensível; `operationId` `checkOutReservation`).
+    - Corpo opcional: `{lateCheckOutFee?}`, dinheiro em texto, o valor da cotação `GET …/early-late-quote`.
+    - `200` com o `ETag` da reserva e `{reservation, room, stayCharges[], lateCheckOut?, releasedPreAuthorizations[], closedFolios[]}`. Cada lançamento traz `serviceCharge?`.
+  - **Ordem** (e das travas, reserva → inventário → conta(s) → UH):
+    1. Antes de qualquer escrita: a permissão; a reserva (`404`); só uma hospedada (`409 RESERVATION_TRANSITION_NOT_ALLOWED`, ação `CHECK_OUT`); o late (`422 EARLY_LATE_NOT_OFFERED`; `409 EARLY_LATE_FEE_CHANGED` com `currentFee`).
+    2. `ReservationsApi.checkOut`, que trava a reserva, devolve o inventário do antecipado e encerra a alocação.
+    3. As cobranças da H14.
+    4. O late, no `ROOM_CHARGE`, como "Late check-out", origem `MANUAL`.
+    5. O saldo pela `BillingApi.balanceOf`. Se não estiver quitado, `409 FOLIO_BALANCE_NOT_ZERO` com `folios` (`folioId`, `number`, `status`, `balance`) e `total`, **já com as cobranças pendentes e o late**; tudo é desfeito.
+    6. A liberação de todas as cauções não encerradas, inclusive as vencidas e as de um check-in desfeito.
+    7. O `closeFolio` de cada conta aberta.
+    8. A UH, por `RoomsApi.markVacant(CHECK_OUT)` (Vaga + Suja).
+    9. A trilha `frontdesk.stay.check-out`.
+  - **Cobranças da H14:** só quando a data operacional do check-out é a data da chegada (o day use, ou o pernoite que sai no dia em que chegou). A noite da chegada gera:
+    - a hospedagem `roomAmount − includedPackagesAmount` no `ROOM_CHARGE`;
+    - cada pacote da noite no `transactionCodeId` dele (quantidade × unitário, com o nome do pacote como descrição). Os **inclusos vão sem taxa de serviço** (`serviceChargeRate` zero), e os adicionais seguem o código.
+
+    A origem é `END_OF_DAY`, e os valores zero não são lançados. Cada cobrança leva a chave `reservations.reservation:<id>:<data>:room` ou `…:package:<packageId>`. Nas outras estadias, o check-out não lança nada.
+  - **Testes:** `CheckOutDomainTest` e `FrontdeskCheckOutApiTest` (no contexto das reservas, com `MutableClockConfiguration`), mais o apoio comum `FrontdeskTestSupport`.
+  - **Limites até o M10:** o check-out só aceita saldo zero por pagamento (sem transferência para contas a receber). A captura da caução é feita antes, pelo `billing`; a nota fiscal é do M7; a tarefa de limpeza é do M6, pelo `GuestCheckedOut`.
+  - **Risco residual:** as contas da reserva são travadas uma a uma, não em ordem de id. Um lançamento roteado simultâneo pode dar deadlock (`500`, raro).
+- O `frontdesk` usa do `rates` só os tipos `RatePlanId`, `GuaranteeType`, `PackageId` e `PackageCharge`, nunca a `RatesApi`. O `ModularityTest` confere os quatro.
+
+*Nota do curador:* a captura da E05 corrige o passo 2 da ordem (o check-out passa `expectedVersion`; `409 RESERVATION_CHANGED`) e informa que `LateCheckOutRules` passou a se chamar `EarlyLateFeeRules`; ver a seção da E05.
+
+Decisões da etapa a confirmar: os inclusos lançados à parte e sem taxa de serviço; o problema de saldo com as cobranças pendentes; a liberação das cauções vencidas.
+
+### M5 E05 — troca de UH, extensão, redução e early check-in (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- **Transições** (`reservations`, M5 E05):
+  - `ReservationsApi.moveRoom(id, move, expectedVersion: Long? = null)` e `ReservationsApi.checkOut(id, expectedVersion: Long? = null)`: com valor, a versão é conferida logo depois de travar a reserva (`requireCurrentVersion`, `412`, o mesmo do `PUT`).
+  - **Redução do hospedado sem restrições de venda:** um `PUT` de uma reserva `IN_HOUSE` que só antecipa a saída não confere estadia mínima nem CTA/CTD. A regra é `StayRepricing.onlyShortens`, com a mesma estadia e só a saída menor. A extensão continua conferindo a venda.
+  - A ocupação do hospedado continua fixa (`409 IN_HOUSE_STAY_FIXED`). A troca de UH continua só para o mesmo tipo (`422 ROOM_TYPE_MISMATCH`); o upgrade está pendente de decisão do usuário.
+- **Recepção: troca de UH** (RF-REC-04, M5 E05; `frontdesk/application/RoomMoveService.kt`, `FrontdeskRoomMoveService`, e `frontdesk/domain/RoomMoveTariffs.kt`):
+  - **Endpoint:** `POST /api/v1/reservations/{id}/room-moves` (`@Idempotent`, `If-Match` obrigatório, `frontdesk.stays.move` para Gerente e Recepcionista, `operationId` `moveReservationRoom`). Corpo `{roomId, reason, tariff=KEEP|RECALCULATE}`. A resposta traz `{reservation, fromRoom, toRoom, tariff, remainingBefore, remainingAfter, difference}`, com o `ETag` novo; a diferença é calculada sobre as noites a partir da data operacional.
+  - **Ordem:**
+    1. Permissão, reserva e `If-Match` contra a versão lida (`412`).
+    2. Só uma reserva hospedada (`409`, ação `MOVE_ROOM`).
+    3. UH nova existente (`400 UNKNOWN_ROOM`) e pronta sem trava (`409 ROOM_NOT_READY`); se for a mesma UH, pula a prontidão, para dar `422 ROOM_MOVE_SAME_ROOM`.
+    4. `moveRoom` com `expectedVersion`.
+    5. As duas UHs em ordem crescente de id: a origem `markVacant(CHECK_OUT)`, que fica Vaga + Suja; o destino `markOccupiedIfReady(CHECK_IN)` com o número de hóspedes da origem.
+    6. Trilha `frontdesk.stay.room-move`.
+  - **Travas:** reserva → travas consultivas das UHs (`reservations`) → linhas das UHs. Tudo numa transação.
+  - **Testes:** `FrontdeskRoomMoveApiTest`, com as corridas de duas trocas e de troca × check-in no mesmo destino e a de check-out × troca na mesma reserva; `RoomMoveDomainTest`.
+- **Early check-in** (RF-REC-03, RN-11, H13):
+  - **Pedido e resposta:** campo opcional `earlyCheckInFee` (dinheiro em texto) no `POST …/check-in` e no `POST /api/v1/walk-ins`, com `earlyCheckIn` na resposta.
+  - **Conferência:** antes de qualquer escrita, por `EarlyLateFeeRules.acceptedFee` (o antigo `LateCheckOutRules`, que agora serve ao early e ao late). As recusas são `409 EARLY_LATE_FEE_CHANGED` e `422 EARLY_LATE_NOT_OFFERED`; um valor não positivo dá `400`.
+  - **Lançamento:** no `ROOM_CHARGE`, como "Early check-in", origem `MANUAL`, em `CheckInSteps.complete`, depois da caução e antes da ocupação, com o valor já aceito passado explicitamente.
+  - **Desfazer:** o early lançado continua na conta, e um novo check-in lança outro; o estorno é pelo `billing`.
+- **Check-out** (corrige a captura da E04):
+  - O check-out passa `expectedVersion` = a versão lida a `ReservationsApi.checkOut`. Se a reserva mudou entre a leitura e a trava (uma troca de UH simultânea, por exemplo), a resposta é `409 RESERVATION_CHANGED` (código novo do `frontdesk`: leia de novo e repita) e tudo é desfeito.
+  - Sem isso, um check-out que esperava atrás de uma troca vagava a UH antiga e deixava a nova Ocupada sem hóspede.
+- **Walk-in com hóspede mesclado:** a reserva nasce com o sobrevivente em tudo (`201`), coberta por teste.
+- **Testes de ponta a ponta do hospedado:** `FrontdeskInHouseChangeApiTest` cobre a extensão com a UH livre, a extensão sem disponibilidade, a extensão sobre a UH de outra reserva, a redução e a ocupação fixa.
+
+Decisões da etapa a confirmar: o upgrade de tipo pendente; a ocupação do hospedado fixa; a redução sem restrições de venda; a origem `CHECK_OUT` no histórico da UH; o early também no walk-in; o código `RESERVATION_CHANGED`.
+
+### M5 E06 — recados (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- **Recados** (RF-REC-07, SPEC §8.2.6 `Trace`, M5 E06). É o **primeiro estado próprio do `frontdesk`**: schema `frontdesk` (criado pelo Flyway a partir da pasta) e migrações `frontdesk/V2026_10_23_1200__create_traces.sql` e `…1201__grant_frontdesk_to_app_role.sql`.
+  - **Tabela `frontdesk.trace`:**
+    - Colunas: setor (`department_id`), vencimento (`due_on`), texto de 1 a 500 caracteres, `reservation_id` **ou** `room_id` (CHECK: exatamente um), `assignee_user_id` opcional, criação, resolução (`resolved_at` e `resolved_by` juntos) e `version`.
+    - Índices: `(due_on, id)`, por setor, por reserva e por UH.
+    - Sem `DELETE`: o trigger `trace_refuse_delete` usa `frontdesk.refuse_delete()`.
+  - **Código:** domínio `frontdesk/domain/Trace.kt` (`Trace`, `TraceLink`, `TraceRules`), `JdbcTraceStore`, caso de uso `FrontdeskTraceService` e um componente `TraceReferences` para as leituras de outros módulos.
+  - **Endpoints** (tag `frontdesk`):
+    - `POST /api/v1/traces` cria o recado (`201`, `Location`, `ETag`).
+    - `GET /api/v1/traces` lista, com filtros `departmentId`, `dueOn`, `status` (`OPEN`/`RESOLVED`), `reservationId` e `roomId`, por cursor `(due_on, id)`.
+    - `GET /api/v1/traces/{id}` lê um recado, com `ETag`.
+    - `PUT /api/v1/traces/{id}` altera setor, vencimento, texto e responsável. Exige `If-Match`; o vínculo é fixo; num recado resolvido dá `409 TRACE_ALREADY_RESOLVED`.
+    - `POST /api/v1/traces/{id}/resolve` resolve, travando a linha. Resolver de novo dá `409`.
+  - **Recusas:** `400 TRACE_INVALID` (texto, vínculo ou vencimento antes da data operacional, com o campo); `UNKNOWN_DEPARTMENT`, `UNKNOWN_RESERVATION`, `UNKNOWN_ROOM` e `UNKNOWN_ASSIGNEE` (`400`); `422 ROOM_INACTIVE`; `404 TRACE_NOT_FOUND`.
+  - **Permissões** (escopo `ALL`, nenhuma sensível):
+    - `frontdesk.traces.read` e `frontdesk.traces.resolve`: Gerente, Recepcionista, Governanta, Manutenção, Comercial/Eventos, Caixa A&B e Cozinha/Bar.
+    - `frontdesk.traces.manage` (criar e alterar): Gerente e Recepcionista.
+  - **Responsável:** um usuário vinculado a um colaborador, conferido pela `StaffApi.employeeOfUser`. A resposta traz o nome do colaborador e o do setor, lidos da `StaffApi` a cada leitura.
+  - **Privacidade (H10 do M3):** o texto do recado nunca vai para a trilha (só `textLength`, em code points, e `textChanged`), nem para log, problemas ou `toString`. A descrição do campo pede que não se escrevam dados pessoais do hóspede.
+  - **Módulo:** o `frontdesk` depende também de `staff`, só por `StaffApi`, `DepartmentId`, `DepartmentSummary` e `EmployeeSummary` (`ModularityTest` e ARCHITECTURE §3.1).
+
+Decisões da etapa a confirmar: o responsável como usuário vinculado a um colaborador; a permissão de resolver separada, com os modelos que a recebem; o vínculo fixo.
+
+*Nota do curador:* as capturas registram decisões tomadas pela opção recomendada, em nome do usuário, a confirmar na entrevista do fim do lote; a captura da integração cita o commit `4a91340` ("Registra as decisões do lote E04 a E06 do M5, tomadas pela opção recomendada em nome do usuário"), mas não diz se a entrevista as confirmou.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Hospedagem e recepção (frontdesk) - 33c65c3f]] (capture_id: 33c65c3f-ad04-4474-af45-ede81052e342): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 486–509, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]] (capture_id: 23ba6833-5674-4a22-aacd-3a26bf55f9bf): check-out no `frontdesk` e uso dos tipos do `rates` (seção "Atualizações por capturas").
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]] (capture_id: 0ebc2e6a-f82e-4b92-9941-f42708feb2a2): transições do hospedado, troca de UH, early check-in, correção do check-out e walk-in com hóspede mesclado.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]] (capture_id: c3d1beeb-2076-413c-af63-4e1e43af516f): recados, primeiro estado próprio do `frontdesk`.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): integração das etapas E04 a E06 à `main` (`4a91340`).

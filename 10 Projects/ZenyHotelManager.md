@@ -25,9 +25,9 @@ Documentação, mensagens ao usuário e commits em pt-BR; código, API e banco e
 
 ## Estado
 
-- M0 a M4 concluídos. M5 em andamento: E01 a E03 concluídas (até o walk-in, commit `a6c0f03`, 2026-10-22). Histórico completo em [[ZenyHotelManager - Estado por marco]].
+- M0 a M4 concluídos. M5 em andamento: E01 a E06 na `main` e em `origin/main` (até `4a91340`, 2026-10-23); próximas elegíveis E07 e E10. Dependências e histórico em [[ZenyHotelManager - Estado por marco]].
 - Referência técnica no brain desde 2026-10-22 (decisão do usuário), ainda sem commit no repositório: `CLAUDE.md` enxuto e hook em `.claude/settings.json` (`SessionStart` e `SubagentStart`) com o `load-brain.py` da skill `development-roadmap`, que exige `BRAIN: carregado (ZenyHotelManager)`. Testado em sessão real e em subagente.
-- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers (protocolo, bloco "Second Brain" e um "Prompt de execução" por roadmap); M0 a M4 ficaram no formato antigo. Próxima etapa: M5 E04, pelo prompt de `roadmap-m5-recepcao-fnrh.md`. Nenhum lote rodou ainda no formato novo.
+- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers (protocolo, bloco "Second Brain" e um "Prompt de execução" por roadmap); M0 a M4 no formato antigo. Primeiro lote no formato novo: M5 E04 a E06. Desde 2026-10-27 (pedido do usuário), M5 a M10 executam pelas souls do Second Brain: sessão iniciada com `claude --agent orquestrador-etapa`, tarefas por `desenvolvedor` → `testador` → verificação mecânica → `revisor-seguranca` e captura pelo `brain-escriba`. O M5 ganhou a E13 (travamento de dependências do Gradle, decisão D3 do usuário), primeira da fila, para o `osv-scanner` da revisão final enxergar o projeto (hoje responde "No package sources found").
 - Git (decisão do usuário): a execução de roadmap roda na branch `roadmap/<slug>`, com commits por tarefa do superpowers; merge, PR e push só com a decisão do usuário no fim do lote. Fora do roadmap: trabalhar na `main`, commit só a pedido.
 
 ## Notas do projeto
@@ -62,7 +62,7 @@ Módulos:
 - [[ZenyHotelManager - Módulo rates]]: planos, políticas, preços, temporadas, restrições.
 - [[ZenyHotelManager - Módulo reservations (inventário, disponibilidade e reservas)]]: inventário, calendário, cotação, criação.
 - [[ZenyHotelManager - Módulo reservations (ciclo de vida, alocação, grupos e busca)]]: alteração, cancelamento, garantia, alocação, grupos, busca.
-- [[ZenyHotelManager - Hospedagem e recepção]]: transições de hospedagem e `frontdesk` (check-in, walk-in).
+- [[ZenyHotelManager - Hospedagem e recepção]]: transições de hospedagem e `frontdesk` (check-in, walk-in, check-out, troca de UH, early, recados).
 
 ## Atualização por capturas
 
@@ -71,11 +71,13 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 ## Próximos passos
 
 - Commit das alterações no repositório (`CLAUDE.md`, `README.md`, `.claude/settings.json` e roadmaps), a cargo do usuário.
+- M6: fechamento com a chave do check-out (nota obrigatória em [[ZenyHotelManager - Módulo billing (contas, roteamento e taxa de serviço)]]).
 - Sincronizar cada roadmap de M6 a M10 com o código antes do primeiro lote (regra 2 de `docs/roadmaps/README.md`); divergências já vistas estão nas "Notas para o plano".
 
 ## Perguntas abertas
 
 - O comando do hook (`python3` e shell POSIX) ainda não foi testado no Windows.
+- Decisões do lote M5 E04 a E06 (opção recomendada): não consta se a entrevista as confirmou. Lista em [[ZenyHotelManager - Hospedagem e recepção]].
 
 ## Conhecimento relacionado
 
@@ -83,8 +85,9 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 
 ## Proveniência
 
-- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f): objetivo do projeto (texto literal do `CLAUDE.md`, linhas 7–13), decisões do usuário sobre a migração, fluxo de atualização por capturas, passos da fase 2 e perguntas abertas. Nota criada a pedido do usuário ("vamos criar um projeto no /second-brain").
-- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Estado por marco - 00f871ac]] (capture_id: 00f871ac-9fce-4291-9d71-47a67a2f69b7): resumo do curador do estado atual; o texto completo está em [[ZenyHotelManager - Estado por marco]].
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - migração do CLAUDE.md para o brain - índice e decisões - 03d0ed3e]] (capture_id: 03d0ed3e-788d-43f3-b338-79e3077d799f): objetivo (literal do `CLAUDE.md`), decisões da migração e fluxo por capturas; nota criada a pedido do usuário.
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Estado por marco - 00f871ac]] (capture_id: 00f871ac-9fce-4291-9d71-47a67a2f69b7): resumo do estado; texto completo em [[ZenyHotelManager - Estado por marco]].
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização migração do CLAUDE.md fase 2 - cad5c5ad]] (capture_id: cad5c5ad-9bf0-4d98-890f-641ae8d1f7ca): fase 2 concluída e testada (Estado, Próximos passos, Perguntas abertas).
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - hook compartilhado do brain - e26f9f6f]] (capture_id: e26f9f6f-f541-4339-bc7d-b74de3e5599f): hook compartilhado da skill `development-roadmap` e linha `BRAIN: carregado`.
-- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização roadmaps M5 a M10 no formato superpowers - d76e6324]] (capture_id: d76e6324-2c69-45d7-b242-d274e8c8ac2e): roadmaps M5 a M10 no formato superpowers, decisões sobre branch e nome das capturas, próxima etapa.
+- 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização roadmaps M5 a M10 no formato superpowers - d76e6324]] (capture_id: d76e6324-2c69-45d7-b242-d274e8c8ac2e): roadmaps M5 a M10 no formato superpowers e regras de branch e capturas.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): Estado do M5 após E04 a E06 (as capturas dessas etapas estão nas notas de tema).

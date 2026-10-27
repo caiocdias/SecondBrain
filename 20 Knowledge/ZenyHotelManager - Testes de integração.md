@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Testes de integração - e6d2c591]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Testes de integração
 
@@ -25,6 +27,23 @@ O container de testes tem os dois papéis da produção:
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E05 — troca de UH, extensão, redução e early check-in (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]. Integrada à `main` com o lote E04 a E06 (até `4a91340`, 2026-10-23, já em `origin/main`), segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]].
+
+- `ReservationSearchApiTest` ("every search filter and every list is served by an index…") é intermitente: no filtro "period", o planner às vezes escolhe `reservation_arrival_idx` em vez de `reservation_stay_period_idx`, e o teste exige um índice exato no banco compartilhado. A sugestão, ainda não aplicada, é aceitar os dois índices nesse filtro.
+- `CheckInRendezvousProbe` virou um `@Aspect` de teste que também sincroniza `RoomMoved`, `GuestCheckedOut` e as chamadas `checkOut`/`moveRoom` (corridas determinísticas). O apoio comum dos testes de recepção é `FrontdeskTestSupport`.
+
+Segundo [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]], o `ReservationSearchApiTest` não falhou na verificação da `main` integrada (`./gradlew build`, 1287 testes, 0 falhas), e a correção recomendada (aceitar os dois índices no filtro "period") continua não aplicada.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Testes de integração - e6d2c591]] (capture_id: e6d2c591-1c43-4288-83b5-6db569703ea7): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 578–585, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]] (capture_id: 0ebc2e6a-f82e-4b92-9941-f42708feb2a2): teste intermitente `ReservationSearchApiTest` e `CheckInRendezvousProbe` como `@Aspect`.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): situação do teste intermitente na verificação antes do push.

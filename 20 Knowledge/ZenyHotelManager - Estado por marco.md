@@ -6,10 +6,14 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Estado por marco - 00f871ac]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]"
+  - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
 ---
 # ZenyHotelManager - Estado por marco
 
-Referência técnica do projeto [[ZenyHotelManager]]: o parágrafo "Estado atual": o que existe no código, etapa a etapa, de M0 E01 a M5 E03.
+Referência técnica do projeto [[ZenyHotelManager]]: o parágrafo "Estado atual": o que existe no código, etapa a etapa, de M0 E01 a M5 E03 no texto literal e de M5 E04 em diante por capturas.
 
 Texto literal do `CLAUDE.md` do repositório, linhas 17, no commit `a6c0f03` (2026-10-22), escrito pelos agentes que executaram as etapas M0 E01 a M5 E03; integrado sem resumo nem reescrita. Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn" e "Mx Ey" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md` e `docs/roadmaps/` do repositório; menções a uma seção (por exemplo, seção "Transições de hospedagem") apontam para outra parte do antigo `CLAUDE.md`, hoje numa das notas de tema listadas no hub. Mudanças posteriores chegam por capturas "ZenyHotelManager - atualização Mx Ey" (fluxo no hub).
 
@@ -19,6 +23,26 @@ O esqueleto existe desde o M0 E01: projeto Gradle único (Kotlin DSL), aplicaç�
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### M5 E04 a E06 (2026-10-23)
+
+Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]], que substitui a linha do M5 das capturas [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]], [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]] e [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]].
+
+- M5 em andamento: E01 a E06 concluídas e na `main` (até `4a91340`, 2026-10-23), já no remoto `origin/main`. As próximas elegíveis são E07 (FNRH: configuração e adaptador) e E10 (impressão, com revisão humana). A E08 depende da E07, a E11 depende da E10 e a E09 segue bloqueada (Q-12: credencial de homologação da FNRH e Cadastur ativo).
+- Primeiro lote executado no formato novo (skill `development-roadmap` com o superpowers): 3 etapas, branch `roadmap/m5-recepcao-fnrh` integrada por fast-forward e removida, junto com o worktree, depois da integração.
+- Fast-forward de `68a2a37` para `4a91340` (20 commits do lote), seguido de `git push origin main`. Verificação antes do push, na `main` integrada: `./gradlew build` com sucesso, 1287 testes e 0 falhas; `.github/scripts/check-api-breaking.sh origin/main` sem mudança de nível `ERR` em `/api/v1`. A branch nunca foi enviada ao remoto.
+
+*Nota do curador:* o que cada etapa acrescentou ao código está nas seções "Atualizações por capturas" de [[ZenyHotelManager - Hospedagem e recepção]] (E04 a E06), [[ZenyHotelManager - Módulo billing (contas, roteamento e taxa de serviço)]] e [[ZenyHotelManager - Módulo billing (caixa, pagamentos, caução e encerramento)]] (E04), [[ZenyHotelManager - Testes de integração]] (E05) e [[ZenyHotelManager - Schemas, migrações e views de relatório]] (E06).
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Estado por marco - 00f871ac]] (capture_id: 00f871ac-9fce-4291-9d71-47a67a2f69b7): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 17, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]] (capture_id: 23ba6833-5674-4a22-aacd-3a26bf55f9bf): etapa E04 concluída (estado substituído pela captura da integração).
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]] (capture_id: 0ebc2e6a-f82e-4b92-9941-f42708feb2a2): etapa E05 concluída (estado substituído pela captura da integração).
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]] (capture_id: c3d1beeb-2076-413c-af63-4e1e43af516f): etapa E06 concluída (estado substituído pela captura da integração).
+- 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): estado do M5 depois da integração de E04 a E06 à `main` e do push.
