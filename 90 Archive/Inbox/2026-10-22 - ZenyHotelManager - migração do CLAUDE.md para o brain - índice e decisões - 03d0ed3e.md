@@ -98,4 +98,3 @@ Orienta o curador a criar o projeto ZenyHotelManager no brain e a integrar as 25
 ## Possíveis conexões
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: método usado na entrevista desta migração.
-- [[TCC - Decodificação intracortical de cinemática]]: outro projeto com repositório local, que manteve os detalhes no repositório (a alternativa descartada aqui).
