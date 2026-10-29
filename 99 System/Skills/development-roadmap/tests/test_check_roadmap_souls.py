@@ -36,6 +36,10 @@ class SoulsNoProtocolo(unittest.TestCase):
         linhas = [l for l in esqueleto().splitlines() if "testador" not in l]
         self.assertIn(AVISO, verificar("\n".join(linhas) + "\n"))
 
+    def test_protocolo_sem_revisor_arquitetura_avisa(self):
+        linhas = [l for l in esqueleto().splitlines() if "revisor-arquitetura" not in l]
+        self.assertIn(AVISO, verificar("\n".join(linhas) + "\n"))
+
 
 if __name__ == "__main__":
     unittest.main()
