@@ -209,7 +209,7 @@ class CheckTestIntegrityTest(unittest.TestCase):
 
     def test_souls_conhecidas_sem_regra(self):
         r = self.repo
-        for soul in ("orquestrador-etapa", "revisor-seguranca", "brain-escriba", "brain-curador"):
+        for soul in ("orquestrador", "orquestrador-etapa", "revisor-seguranca", "brain-escriba", "brain-curador"):
             with self.subTest(soul=soul):
                 mid = r.git("rev-parse", "HEAD")
                 r.write(f"docs/{soul}.md", "x\n")
@@ -222,19 +222,31 @@ class CheckTestIntegrityTest(unittest.TestCase):
         r = self.repo
         r.write("docs/plano.md", "x\n")
         r.write(".superpowers/sdd/p/ledger.txt", "x\n")
-        r.commit("plano", "orquestrador-etapa")
+        r.commit("plano", "orquestrador")
         mid = r.git("rev-parse", "HEAD")
         code, out = r.check(self.base)
         self.assertEqual(code, 0, out)
         self.assertNotIn("[ORQUESTRADOR_CODIGO]", out)
         r.write("src/main/a.py", "x = 1\n")
         r.write(".claude/agents/testador.md", "---\nname: testador\n---\n")
-        r.commit("codigo", "orquestrador-etapa")
+        r.commit("codigo", "orquestrador")
         code, out = r.check(mid)
         self.assertEqual(code, 1, out)
         self.assertIn("[ORQUESTRADOR_CODIGO]", out)
         self.assertIn("src/main/a.py", out)
         self.assertIn(".claude/agents/testador.md", out)
+
+    def test_alias_orquestrador_etapa(self):
+        r = self.repo
+        for soul in ("orquestrador-etapa", "orquestrador"):
+            with self.subTest(soul=soul):
+                mid = r.git("rev-parse", "HEAD")
+                r.write("src/A.kt", f"// {soul}\n")
+                r.commit("codigo", soul)
+                code, out = r.check(mid)
+                self.assertEqual(code, 1, out)
+                self.assertIn("[ORQUESTRADOR_CODIGO]", out)
+                self.assertNotIn("[SOUL_DESCONHECIDA]", out)
 
     def test_bytes_nao_utf8(self):
         r = self.repo

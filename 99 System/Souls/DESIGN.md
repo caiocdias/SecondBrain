@@ -1,5 +1,7 @@
 # Souls — documento de design
 
+> Em 2026-10-29 a soul `orquestrador-etapa` foi renomeada para `orquestrador`.
+
 Status: rascunho para aprovação do usuário. Criado em 2026-10-27, a partir de uma entrevista com o usuário (brainstorming do superpowers, com as decisões tomadas em perguntas com opção recomendada, conforme [[Decidir pendências do usuário por entrevista com opção recomendada]]).
 
 Ao longo do texto, **[usuário]** marca o que o usuário decidiu, e **[agente]** marca uma escolha do agente que escreveu este design, que o usuário pode revisar.

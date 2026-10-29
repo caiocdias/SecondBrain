@@ -1,5 +1,7 @@
 # Souls — plano de implementação
 
+> Em 2026-10-29 a soul `orquestrador-etapa` foi renomeada para `orquestrador`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Criar as seis souls (subagentes do Claude Code com identidade e travas reais), instalá-las a partir do vault e fazer a skill `development-roadmap` usá-las.

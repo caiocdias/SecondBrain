@@ -8,7 +8,7 @@ SOULS = {
     "desenvolvedor": "desenvolvedor",
     "testador": "testador",
     "revisor-seguranca": "revisor",
-    "orquestrador-etapa": "orquestrador",
+    "orquestrador": "orquestrador",
     "brain-escriba": "escriba",
     "brain-curador": "curador",
 }

@@ -10,7 +10,7 @@ Cada soul tem três camadas de proteção, de força diferente: o **bloqueio dur
 
 | Soul | Onde roda | Papel | Bloqueio duro | Auditoria e julgamento |
 |---|---|---|---|---|
-| `orquestrador-etapa` | sessão principal: `claude --agent orquestrador-etapa` | Planeja (`superpowers:writing-plans`), executa a etapa com `superpowers:subagent-driven-development`, despacha as outras souls, roda a verificação mecânica dos testes e os scanners de dependência. | Hook: só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/` nem nas souls. `Agent(...)` só despacha as souls listadas. | `ORQUESTRADOR_CODIGO` para commits dele fora disso; a revisora julga. |
+| `orquestrador` | sessão principal: `claude --agent orquestrador` | Planeja (`superpowers:writing-plans`), executa a etapa com `superpowers:subagent-driven-development`, despacha as outras souls, roda a verificação mecânica dos testes e os scanners de dependência. | Hook: só edita `.md` e arquivos sob `.superpowers/`, nunca sob `.claude/` nem nas souls. `Agent(...)` só despacha as souls listadas. | `ORQUESTRADOR_CODIGO` para commits dele fora disso; a revisora julga. |
 | `desenvolvedor` | subagente, por tarefa | Implementa com TDD, seguindo o prompt implementer do superpowers. | Sem `Agent`; hook barra `git push`. | `DEV_TESTE_DO_TESTADOR`, `TESTE_REMOVIDO`, `ASSERCAO_REMOVIDA` e `SKIP_ADICIONADO` apontam mexida em testes; a revisora julga. |
 | `testador` | subagente, depois de cada tarefa | Analisa, ataca e completa a suíte de testes. | Hook: Edit, Write e NotebookEdit só em caminhos de teste; sem `Agent`; hook barra `git push`. | `TESTADOR_PRODUCAO` aponta código de produção alterado por outros meios (Bash, por exemplo), além das regras de testes removidos ou pulados; a revisora julga. |
 | `revisor-seguranca` | subagente, em cada tarefa e na revisão final | Revisa segurança, supply chain, boas práticas e integridade dos testes. | Ferramentas só de leitura: sem `Edit`, `Write` nem Bash. O orquestrador roda os scanners e anexa as saídas ao pacote de revisão. | O veredito dela vai ao orquestrador e, nas decisões do protocolo, ao usuário. |
@@ -19,7 +19,7 @@ Cada soul tem três camadas de proteção, de força diferente: o **bloqueio dur
 
 ## Como usar
 
-- **Desenvolvimento:** inicie a sessão do projeto com `claude --agent orquestrador-etapa`. Ele confere se `desenvolvedor`, `testador` e `revisor-seguranca` estão instaladas e, se faltar alguma, para e avisa. Não há fallback para os prompts padrão. Vale para qualquer plano do superpowers, com ou sem roadmap (skill `development-roadmap`).
+- **Desenvolvimento:** inicie a sessão do projeto com `claude --agent orquestrador`. Ele confere se `desenvolvedor`, `testador` e `revisor-seguranca` estão instaladas e, se faltar alguma, para e avisa. Não há fallback para os prompts padrão. Vale para qualquer plano do superpowers, com ou sem roadmap (skill `development-roadmap`).
 - **Vault:** `claude --agent brain-curador` na raiz do vault é opt-in. Torná-lo o padrão das sessões do vault é decisão futura, porque, como sessão principal, o corpo da soul substitui o system prompt padrão do Claude Code.
 - **Fora do vault:** o `brain-escriba` é despachado pelo orquestrador (por exemplo, para a captura de fechamento de etapa); não é iniciado à mão.
 

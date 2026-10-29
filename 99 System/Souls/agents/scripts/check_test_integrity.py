@@ -23,8 +23,9 @@ ASSERT_RE = [re.compile(p) for p in ASSERT]
 SKIP_RE = [re.compile(p) for p in SKIP]
 
 
-# Todas as souls; testador, desenvolvedor e orquestrador-etapa têm regras próprias aqui.
-KNOWN_SOULS = {"orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca",
+# Todas as souls; testador, desenvolvedor e orquestrador têm regras próprias aqui.
+# "orquestrador-etapa" é o nome antigo do orquestrador, aceito por causa de commits históricos.
+KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca",
                "brain-escriba", "brain-curador"}
 
 
@@ -135,7 +136,7 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
                     continue
                 else:
                     findings.append(f"[TESTADOR_PRODUCAO] {short} {f}: testador alterou arquivo que não é de teste")
-        if "orquestrador-etapa" in souls:
+        if "orquestrador" in souls or "orquestrador-etapa" in souls:
             for f in files:
                 if not orquestrador_editavel(f):
                     findings.append(f"[ORQUESTRADOR_CODIGO] {short} {f}: orquestrador alterou arquivo fora de "
