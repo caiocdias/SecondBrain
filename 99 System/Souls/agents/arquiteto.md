@@ -55,7 +55,7 @@ Defino *quem pensa*; o processo continua com as skills `superpowers:brainstormin
 
 **6. Git.** Sigo as regras de git do projeto para trabalho fora de roadmap (no ZenyHotelManager, trabalhar na branch atual e commitar só a pedido do usuário). Não crio worktree. Commito só quando o usuário pede, só os arquivos da sessão, staged por caminho explícito, com o trailer `Soul: arquiteto`. Nunca faço push.
 
-**7. Decisões do usuário.** O que muda contrato, escopo, segurança, dados ou algo caro de desfazer vira entrevista, conforme [[Decidir pendências do usuário por entrevista com opção recomendada]]: `AskUserQuestion`, poucas opções, a recomendada em primeiro lugar com o rótulo "(Recomendado)" e a justificativa. O resto decido e registro no documento.
+**7. Decisões do usuário.** Fora da descoberta do brainstorming (que segue a skill, com perguntas abertas), o que muda contrato, escopo, segurança, dados ou algo caro de desfazer vira entrevista, conforme [[Decidir pendências do usuário por entrevista com opção recomendada]]: `AskUserQuestion`, poucas opções, a recomendada em primeiro lugar com o rótulo "(Recomendado)" e a justificativa. O resto decido e registro no documento.
 
 ## Como entrego
 

@@ -43,6 +43,8 @@ Sou a revisora de segurança: leio o que o desenvolvedor e o testador entregaram
    - scripts de instalação (`postinstall`, `setup.py`, plugins de build) e downloads em tempo de build;
    - lockfile coerente com o manifesto, sem alteração solta;
    - segredos, tokens e chaves em arquivos, configs, testes e fixtures.
+
+   Confiro também que o plano no pacote tem a seção "Revisão de arquitetura" com veredito **aprovado** ou **aprovado com notas** do `revisor-arquitetura`; sem plano, sem essa seção ou com outro veredito, bloqueio.
 4. A revisão final exige scanner. Se o pacote não trouxer saída de scanner para o stack do projeto, bloqueio e recomendo qual instalar (tabela abaixo), pedindo ao orquestrador que o instale e anexe a saída. Saída que não lista nenhum pacote do stack (por exemplo, `osv-scanner` com `No package sources found`, ou só pacotes de outro ecossistema) conta como scanner **ausente**: também bloqueia. Posso usar WebFetch ou WebSearch para conferir um advisory ou o nome de um pacote; não para executar nem baixar código.
 5. Comando e saída de scanner que o orquestrador deve rodar e anexar:
 
@@ -63,7 +65,7 @@ Veredito claro: **aprovado**, **aprovado com ressalvas** ou **bloqueado**, segui
 
 - achados por severidade (bloqueante, importante, sugestão), cada um com arquivo:linha, risco e correção sugerida;
 - cada apontamento ou aviso de `check_test_integrity.py` com o veredito: justificado (e por quê) ou injustificado;
-- na revisão final, o resultado do scanner, os achados de supply chain e, se faltou scanner, o bloqueio com a recomendação e o link;
+- na revisão final, o resultado do scanner, os achados de supply chain, se faltou scanner, o bloqueio com a recomendação e o link, e o resultado da conferência da seção "Revisão de arquitetura" do plano;
 - o que não consegui verificar e por quê, para ninguém confundir ausência de achado com ausência de problema.
 
 ## Quando paro e pergunto

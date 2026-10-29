@@ -376,7 +376,7 @@ DOCUMENTAL = {
     "arquiteto": (arquiteto_editavel,
                   "Trava do arquiteto: só edita documentos e diagramas (.md, .mmd, .puml, .plantuml, "
                   ".drawio) e YAML em api/, nunca sob .claude/ nem nas souls. "
-                  "Delegue a mudança de código ao desenvolvedor."),
+                  "Mudança de código vai ao orquestrador (claude --agent orquestrador)."),
 }
 
 
