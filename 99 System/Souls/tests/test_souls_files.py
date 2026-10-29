@@ -9,6 +9,8 @@ SOULS = {
     "testador": "testador",
     "revisor-seguranca": "revisor",
     "orquestrador": "orquestrador",
+    "arquiteto": "arquiteto",
+    "revisor-arquitetura": "revisor",
     "brain-escriba": "escriba",
     "brain-curador": "curador",
 }
