@@ -409,12 +409,14 @@ class ArquitetoTest(unittest.TestCase):
 
     def test_yaml_so_com_api_relativo(self):
         self.assertIsNotNone(self._w("/srv/api/proj/src/app.yaml", "/srv/api/proj"))
-        self.assertIsNone(self._w("/srv/api/proj/docs/API/x.yml", "/srv/api/proj"))
         self.assertIsNone(self._w("/srv/api/proj/api/openapi.yaml", "/srv/api/proj"))
-        for rel in ("api/v1/o.yml", "api/src/main/resources/application.yml"):
+        self.assertIsNone(self._w("/srv/api/proj/API/openapi.yml", "/srv/api/proj"))
+        for rel in ("api/v1/o.yml", "api/src/main/resources/application.yml", "docs/api/x.yml",
+                    "docs/API/x.yml", "deploy/api/deployment.yaml"):
             self.assertIsNotNone(self._w("/srv/api/proj/" + rel, "/srv/api/proj"), rel)
         self.assertFalse(soul_guard.arquiteto_editavel("api/v1/o.yml"))
-        self.assertTrue(soul_guard.arquiteto_editavel("docs/api/x.yml"))
+        self.assertFalse(soul_guard.arquiteto_editavel("docs/api/x.yml"))
+        self.assertFalse(soul_guard.arquiteto_editavel("deploy/api/deployment.yaml"))
         self.assertIsNotNone(self._w("/r/.claude/worktrees/api/src/o.yaml", "/r/.claude/worktrees/api"))
 
         self.assertTrue(soul_guard.arquiteto_editavel("api/o.yaml"))

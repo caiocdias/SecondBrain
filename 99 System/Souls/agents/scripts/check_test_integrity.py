@@ -30,7 +30,7 @@ KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "arquiteto", "revisor-arqui
 
 # Souls que só editam documentos: soul -> (arquivo editável?, tag do apontamento, complemento da mensagem).
 _MSG_ORQ = "fora de .md e .superpowers/, ou sob .claude/ ou nas souls"
-_MSG_ARQ = ("fora de documentos e diagramas (.md, .mmd, .puml, .plantuml, .drawio, YAML em api/), "
+_MSG_ARQ = ("fora de documentos e diagramas (.md, .mmd, .puml, .plantuml, .drawio, YAML em api/ na raiz), "
             "ou sob .claude/ ou nas souls")
 DOCUMENTAL = {
     "orquestrador": (orquestrador_editavel, "ORQUESTRADOR_CODIGO", _MSG_ORQ),

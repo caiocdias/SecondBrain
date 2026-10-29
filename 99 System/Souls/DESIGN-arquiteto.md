@@ -1,5 +1,11 @@
 # Soul arquiteto — documento de design
 
+> **Nota (2026-10-29):** design aprovado pelo usuário em 2026-10-29; o corpo abaixo é o texto aprovado e não foi reescrito. Mudanças posteriores, que prevalecem sobre ele (a fonte da verdade são as souls em `agents/`):
+> - o `orquestrador-etapa` foi renomeado para `orquestrador` (o trailer `Soul: orquestrador-etapa` continua aceito como alias histórico);
+> - as extensões finais do arquiteto são `.md`, `.mmd`, `.puml`, `.plantuml` e `.drawio`;
+> - YAML só em `api/<arquivo>.yaml` (ou `.yml`) na raiz do repositório, não em `api/**`;
+> - o builder check do `superpowers:brainstorming` vai ao `revisor-arquitetura` (o arquiteto despacha `brain-escriba` e `revisor-arquitetura`), e o visual companion não é usado: os diagramas vão em Mermaid dentro do `.md`.
+
 Status: rascunho para aprovação do usuário. Criado em 2026-10-29 numa entrevista com o usuário no modelo do brain ([[Decidir pendências do usuário por entrevista com opção recomendada]]), a pedido dele. Complementa o [design das seis souls](DESIGN.md); tudo o que lá vale para as souls (anatomia, travas, sincronização, testes) vale aqui, salvo o que este documento muda.
 
 Marcadores: **[usuário]** indica decisão do usuário; **[agente]** indica escolha do agente que escreveu o design, revisável pelo usuário.

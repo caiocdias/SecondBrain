@@ -251,6 +251,23 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.assertIn("[ARQUITETO_CODIGO]", out)
         self.assertIn("src/A.kt", out)
 
+    def test_arquiteto_yaml_so_em_api_na_raiz(self):
+        r = self.repo
+        r.write("api/openapi.yaml", "openapi: 3.1.0\n")
+        r.commit("contrato", "arquiteto")
+        mid = r.git("rev-parse", "HEAD")
+        code, out = r.check(self.base)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("[ARQUITETO_CODIGO]", out)
+        r.write("deploy/api/deployment.yaml", "kind: Deployment\n")
+        r.write("docs/api/x.yml", "x: 1\n")
+        r.commit("yaml fora da raiz", "arquiteto")
+        code, out = r.check(mid)
+        self.assertEqual(code, 1, out)
+        self.assertIn("[ARQUITETO_CODIGO]", out)
+        self.assertIn("deploy/api/deployment.yaml", out)
+        self.assertIn("docs/api/x.yml", out)
+
     def test_revisor_arquitetura_conhecido(self):
         r = self.repo
         r.write("docs/r.md", "x\n")

@@ -183,9 +183,11 @@ ARQUITETO_YAML = (".yaml", ".yml")
 
 
 def arquiteto_editavel(path: str, cwd: str | None = None) -> bool:
-    """O arquiteto edita documentos e diagramas (`.md`, `.mmd`, `.puml`, `.plantuml`, `.drawio`)
-    YAML só quando o diretório imediato é `api` (contratos OpenAPI); nunca sob `.claude/` nem nas souls.
-    O prefixo de worktree nativo não conta; `api` é julgado só nas partes de liberação."""
+    """O arquiteto edita documentos e diagramas (`.md`, `.mmd`, `.puml`, `.plantuml`, `.drawio`) e
+    YAML só em `api/<arquivo>` na raiz do repositório (contrato OpenAPI): `api` precisa ser o primeiro
+    segmento das partes de liberação e o pai imediato (`api/openapi.yaml` sim; `docs/api/x.yml`,
+    `deploy/api/deployment.yaml` e `api/v1/o.yml` não). Nunca sob `.claude/` nem nas souls; o prefixo
+    de worktree nativo não conta."""
     if _protegido(Path(path).parts):
         return False
     nome = path.lower()
@@ -193,7 +195,7 @@ def arquiteto_editavel(path: str, cwd: str | None = None) -> bool:
         return True
     if nome.endswith(ARQUITETO_YAML):
         rest = _partes_de_liberacao(path, cwd)
-        return len(rest) >= 2 and rest[-2].lower() == "api"
+        return len(rest) == 2 and rest[0].lower() == "api"
     return False
 
 
@@ -375,7 +377,7 @@ DOCUMENTAL = {
                      "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor."),
     "arquiteto": (arquiteto_editavel,
                   "Trava do arquiteto: só edita documentos e diagramas (.md, .mmd, .puml, .plantuml, "
-                  ".drawio) e YAML em api/, nunca sob .claude/ nem nas souls. "
+                  ".drawio) e YAML em api/ na raiz do repositório, nunca sob .claude/ nem nas souls. "
                   "Mudança de código vai ao orquestrador (claude --agent orquestrador)."),
 }
 
