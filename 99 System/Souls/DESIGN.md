@@ -148,3 +148,5 @@ Estas mudanças fazem parte do escopo. Elas mexem em `99 System/AI/` e, portanto
 - Como ensinar o orquestrador a inserir o testador e a verificação mecânica no ciclo do `subagent-driven-development` sem alterar o plugin.
 - Quais scanners instalar e como a revisora detecta qual se aplica ao stack do projeto.
 - Como validar cada soul antes de usá-la de verdade, por exemplo: tentar fazer o testador editar código de produção e confirmar o bloqueio.
+
+Nota (2026-10-29): as souls `arquiteto` e `revisor-arquitetura` e a revisão de plano antes da execução estão em [`DESIGN-arquiteto.md`](DESIGN-arquiteto.md); este documento não foi reescrito.

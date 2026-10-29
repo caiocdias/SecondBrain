@@ -41,6 +41,15 @@ Respostas (2026-10-27; **[usuário]** = decisão do usuário, **[agente]** = esc
 - Os cinco papéis da skill versus os papéis das souls: não coincidem. O usuário escolheu os papéis: o orquestrador absorveu o planejador, entraram o testador e a revisora de segurança, e o Second Brain ganhou duas souls (`brain-curador` e `brain-escriba`) **[usuário]**; os nomes são **[agente]**. O usuário decidiu apenas que a revisão final exige scanner de dependências, com recomendação do scanner e link oficial de instalação **[usuário]**; a revisora ser somente leitura por ferramenta, sem Bash, com o orquestrador rodando os scanners, foi um ruling do agente **[agente]**.
 - Opt-in do `brain-curador`: começa como opção (`--agent`); torná-lo padrão do vault fica para depois **[agente]**.
 
+Atualização (2026-10-29): a soul `arquiteto` e a revisão de plano (**[usuário]** = decisão do usuário, **[agente]** = escolha do agente):
+
+- Uma soul com dois usos e uma identidade **[usuário]**: sessão principal de desenho (`claude --agent arquiteto`) e revisor do plano de cada etapa. Como cada soul tem um só conjunto de ferramentas e hooks, viram dois arquivos, `arquiteto` e `revisor-arquitetura`, com a identidade só no primeiro **[agente]**. Com elas são oito souls.
+- Lente: limites e contratos, irreversíveis primeiro, não funcionais, aderência a decisões **[usuário]**.
+- O orquestrador escreve o plano e o arquiteto revisa **[usuário]**. A revisão é bloqueante: achado Crítico ou Importante impede a execução **[usuário]**; até 2 rodadas de correção e re-revisão, retomando o mesmo revisor **[agente]**; divergência persistente vira entrevista com o usuário **[usuário]**. A regra vale para todo plano que o orquestrador executa, com ou sem roadmap **[usuário]**.
+- Travas: o `arquiteto` escreve só documentos, diagramas e o contrato OpenAPI **[usuário]**, com Bash livre para leitura e `Agent(brain-escriba)` apenas; bloquear `git push` nele é recomendação do agente **[agente]**. O `revisor-arquitetura` é só leitura, sem Bash, sempre no modelo mais capaz **[usuário]**.
+- Decisões de arquitetura ficam no repositório (spec ou ADR) e são capturadas no brain pelo `brain-escriba` **[usuário]**. O arquiteto para na spec ou no roadmap e não escreve o plano de etapa **[agente]**.
+- Conferência cruzada: na revisão final, a `revisor-seguranca` exige no plano a seção "Revisão de arquitetura" aprovada **[usuário]**.
+
 ## Relações
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: a resposta sobre Souls veio de uma entrevista com opção recomendada.
@@ -50,3 +59,4 @@ Respostas (2026-10-27; **[usuário]** = decisão do usuário, **[agente]** = esc
 - 2026-10-22 — [[2026-10-22 - Souls - alma personalizada para cada agente do desenvolvimento - 2a56505b]] (capture_id: 2a56505b-41ee-42d8-9935-bd73090533c7): opinião literal do usuário sobre Souls, decisão de reservar o ponto de encaixe na skill `development-roadmap` e perguntas em aberto.
 - 2026-10-27 — sessão curadora; design em 99 System/Souls/DESIGN.md: implementação das seis souls, respostas às perguntas em aberto e marcação do que foi decisão do usuário ou escolha do agente (entrevista com opção recomendada).
 - 2026-10-29 — sessão de implementação do plano do arquiteto; a soul `orquestrador-etapa` foi renomeada para `orquestrador` (arquivo, `name` e textos; o trailer `Soul: orquestrador-etapa` segue aceito como alias histórico). O texto de estado acima já usa o nome novo.
+- 2026-10-29 — design em 99 System/Souls/DESIGN-arquiteto.md (entrevista com o usuário com opção recomendada): soul `arquiteto`, soul `revisor-arquitetura` e revisão de plano bloqueante antes da execução; marcação de decisões do usuário e escolhas do agente conforme aquele documento.
