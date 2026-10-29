@@ -409,11 +409,33 @@ class ArquitetoTest(unittest.TestCase):
 
     def test_yaml_so_com_api_relativo(self):
         self.assertIsNotNone(self._w("/srv/api/proj/src/app.yaml", "/srv/api/proj"))
-        self.assertIsNone(self._w("/srv/api/proj/api/v1/o.yml", "/srv/api/proj"))
+        self.assertIsNone(self._w("/srv/api/proj/docs/API/x.yml", "/srv/api/proj"))
+        self.assertIsNone(self._w("/srv/api/proj/api/openapi.yaml", "/srv/api/proj"))
+        for rel in ("api/v1/o.yml", "api/src/main/resources/application.yml"):
+            self.assertIsNotNone(self._w("/srv/api/proj/" + rel, "/srv/api/proj"), rel)
+        self.assertFalse(soul_guard.arquiteto_editavel("api/v1/o.yml"))
+        self.assertTrue(soul_guard.arquiteto_editavel("docs/api/x.yml"))
+        self.assertIsNotNone(self._w("/r/.claude/worktrees/api/src/o.yaml", "/r/.claude/worktrees/api"))
+
         self.assertTrue(soul_guard.arquiteto_editavel("api/o.yaml"))
         self.assertFalse(soul_guard.arquiteto_editavel("config/o.yaml"))
         self.assertFalse(soul_guard.arquiteto_editavel("/r/.claude/worktrees/x/src/o.yaml"))
         self.assertTrue(soul_guard.arquiteto_editavel("/r/.claude/worktrees/x/api/o.yaml"))
+
+    def test_notebook_e_config_dir(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as cfg:
+            repo = os.path.realpath(tmp)
+            self.assertIsNone(decide("arquiteto", "NotebookEdit", {"notebook_path": "docs/n.md"}, repo, VAULT))
+            self.assertIsNotNone(decide("arquiteto", "NotebookEdit", {"notebook_path": "src/n.ipynb"}, repo, VAULT))
+            old = os.environ.get("CLAUDE_CONFIG_DIR")
+            os.environ["CLAUDE_CONFIG_DIR"] = cfg
+            try:
+                self.assertIsNotNone(self._w(os.path.join(os.path.realpath(cfg), "notas.md"), repo))
+            finally:
+                if old is None:
+                    os.environ.pop("CLAUDE_CONFIG_DIR")
+                else:
+                    os.environ["CLAUDE_CONFIG_DIR"] = old
 
     def test_bash(self):
         self.assertIsNotNone(decide("arquiteto", "Bash", {"command": "git push origin master"}, "/r", VAULT))

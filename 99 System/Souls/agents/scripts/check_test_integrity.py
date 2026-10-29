@@ -23,10 +23,20 @@ ASSERT_RE = [re.compile(p) for p in ASSERT]
 SKIP_RE = [re.compile(p) for p in SKIP]
 
 
-# Todas as souls; testador, desenvolvedor e orquestrador têm regras próprias aqui.
+# Todas as souls; testador, desenvolvedor, orquestrador e arquiteto têm regras próprias aqui.
 # "orquestrador-etapa" é o nome antigo do orquestrador, aceito por causa de commits históricos.
-KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "arquiteto", "revisor-arquitetura", "desenvolvedor", "testador", "revisor-seguranca",
-               "brain-escriba", "brain-curador"}
+KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "arquiteto", "revisor-arquitetura", "desenvolvedor",
+               "testador", "revisor-seguranca", "brain-escriba", "brain-curador"}
+
+# Souls que só editam documentos: soul -> (arquivo editável?, tag do apontamento, complemento da mensagem).
+_MSG_ORQ = "fora de .md e .superpowers/, ou sob .claude/ ou nas souls"
+_MSG_ARQ = ("fora de documentos e diagramas (.md, .mmd, .puml, .plantuml, .drawio, YAML em api/), "
+            "ou sob .claude/ ou nas souls")
+DOCUMENTAL = {
+    "orquestrador": (orquestrador_editavel, "ORQUESTRADOR_CODIGO", _MSG_ORQ),
+    "orquestrador-etapa": (orquestrador_editavel, "ORQUESTRADOR_CODIGO", _MSG_ORQ),
+    "arquiteto": (arquiteto_editavel, "ARQUITETO_CODIGO", _MSG_ARQ),
+}
 
 
 class GitError(Exception):
@@ -136,17 +146,13 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
                     continue
                 else:
                     findings.append(f"[TESTADOR_PRODUCAO] {short} {f}: testador alterou arquivo que não é de teste")
-        if "orquestrador" in souls or "orquestrador-etapa" in souls:
-            for f in files:
-                if not orquestrador_editavel(f):
-                    findings.append(f"[ORQUESTRADOR_CODIGO] {short} {f}: orquestrador alterou arquivo fora de "
-                                    ".md e .superpowers/, ou sob .claude/ ou nas souls")
-        if "arquiteto" in souls:
-            for f in files:
-                if not arquiteto_editavel(f):
-                    findings.append(f"[ARQUITETO_CODIGO] {short} {f}: arquiteto alterou arquivo fora de documentos e "
-                                    "diagramas (.md, .mmd, .puml, .plantuml, .drawio, YAML sob api/), "
-                                    "ou sob .claude/ ou nas souls")
+        for soul in souls:
+            rule = DOCUMENTAL.get(soul)
+            if rule:
+                editavel, tag, msg = rule
+                for f in files:
+                    if not editavel(f):
+                        findings.append(f"[{tag}] {short} {f}: {soul} alterou arquivo {msg}")
         if "desenvolvedor" in souls:
             for f in files:
                 if f in testador_tests:

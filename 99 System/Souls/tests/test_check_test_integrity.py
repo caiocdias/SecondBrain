@@ -251,6 +251,14 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.assertIn("[ARQUITETO_CODIGO]", out)
         self.assertIn("src/A.kt", out)
 
+    def test_revisor_arquitetura_conhecido(self):
+        r = self.repo
+        r.write("docs/r.md", "x\n")
+        r.commit("rev", "revisor-arquitetura")
+        code, out = r.check(self.base)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("SOUL_DESCONHECIDA", out)
+
     def test_alias_orquestrador_etapa(self):
         r = self.repo
         for soul in ("orquestrador-etapa", "orquestrador"):

@@ -184,7 +184,7 @@ ARQUITETO_YAML = (".yaml", ".yml")
 
 def arquiteto_editavel(path: str, cwd: str | None = None) -> bool:
     """O arquiteto edita documentos e diagramas (`.md`, `.mmd`, `.puml`, `.plantuml`, `.drawio`)
-    e YAML só sob um segmento `api` (contratos OpenAPI); nunca sob `.claude/` nem nas souls.
+    YAML só quando o diretório imediato é `api` (contratos OpenAPI); nunca sob `.claude/` nem nas souls.
     O prefixo de worktree nativo não conta; `api` é julgado só nas partes de liberação."""
     if _protegido(Path(path).parts):
         return False
@@ -192,7 +192,8 @@ def arquiteto_editavel(path: str, cwd: str | None = None) -> bool:
     if nome.endswith(ARQUITETO_EXT):
         return True
     if nome.endswith(ARQUITETO_YAML):
-        return "api" in (x.lower() for x in _partes_de_liberacao(path, cwd)[:-1])
+        rest = _partes_de_liberacao(path, cwd)
+        return len(rest) >= 2 and rest[-2].lower() == "api"
     return False
 
 
@@ -355,6 +356,30 @@ def _decide_bash(role: str, command: str):
     return None
 
 
+def _trava_documental(role: str, editavel, path: str, cwd: str, msg: str) -> str | None:
+    """Trava de escrita dos papéis que só editam documentos: vale para o caminho normalizado e
+    para o realpath, e nunca nas souls nem no diretório de configuração do Claude Code."""
+    real_s, rcwd = _real_e_cwd(path, cwd)
+    real = Path(real_s)
+    if _dentro_das_souls(real):
+        return f"Trava do {role}: não altera as souls."
+    if (not editavel(path, cwd) or not editavel(real_s, rcwd)
+            or _protegido(real.parts) or _dentro_da_config(path, real)):
+        return msg
+    return None
+
+
+DOCUMENTAL = {
+    "orquestrador": (orquestrador_editavel,
+                     "Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
+                     "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor."),
+    "arquiteto": (arquiteto_editavel,
+                  "Trava do arquiteto: só edita documentos e diagramas (.md, .mmd, .puml, .plantuml, "
+                  ".drawio) e YAML em api/, nunca sob .claude/ nem nas souls. "
+                  "Delegue a mudança de código ao desenvolvedor."),
+}
+
+
 def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -> str | None:
     tool_input = tool_input or {}
     if tool_name in WRITE_TOOLS:
@@ -363,25 +388,11 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
         if role == "testador" and not testador_editavel(path, cwd):
             return ("Trava do testador: só altera testes e relatórios .md sob .superpowers/sdd/; "
                     "não altera código de produção. Aponte o problema no relatório em vez de editar.")
-        if role == "orquestrador":
-            real_s, rcwd = _real_e_cwd(path, cwd)
-            real = Path(real_s)
-            if _dentro_das_souls(real):
-                return "Trava do orquestrador: não altera as souls."
-            if (not orquestrador_editavel(path, cwd) or not orquestrador_editavel(real_s, rcwd)
-                    or _protegido(real.parts) or _dentro_da_config(path, real)):
-                return ("Trava do orquestrador: só edita arquivos .md ou sob .superpowers/, "
-                        "nunca sob .claude/ nem nas souls. Delegue a mudança de código ao desenvolvedor.")
-        if role == "arquiteto":
-            real_s, rcwd = _real_e_cwd(path, cwd)
-            real = Path(real_s)
-            if _dentro_das_souls(real):
-                return "Trava do arquiteto: não altera as souls."
-            if (not arquiteto_editavel(path, cwd) or not arquiteto_editavel(real_s, rcwd)
-                    or _protegido(real.parts) or _dentro_da_config(path, real)):
-                return ("Trava do arquiteto: só edita documentos e diagramas (.md, .mmd, .puml, .plantuml, "
-                        ".drawio) e YAML sob api/, nunca sob .claude/ nem nas souls. "
-                        "Delegue a mudança de código ao desenvolvedor.")
+        if role in DOCUMENTAL:
+            editavel, msg = DOCUMENTAL[role]
+            return_msg = _trava_documental(role, editavel, path, cwd, msg)
+            if return_msg:
+                return return_msg
         if role == "escriba":
             if tool_name != "Write":
                 return ("Trava do escriba: só cria notas novas com Write em 00 Inbox/; "
