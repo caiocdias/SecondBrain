@@ -373,6 +373,53 @@ class FinalReviewTest(unittest.TestCase):
         self.assertIsNotNone(self.bash("desenvolvedor", c))
 
 
+class ArquitetoTest(unittest.TestCase):
+    def _w(self, rel, cwd):
+        return decide("arquiteto", "Write", {"file_path": rel}, str(cwd), VAULT)
+
+    def test_liberados(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            for rel in ["docs/adr/0001-x.md", "docs/diagramas/c4.mmd", "docs/x.puml", "docs/x.drawio",
+                        "api/openapi.yaml", "docs/X.PLANTUML"]:
+                for tool in ("Write", "Edit", "MultiEdit"):
+                    self.assertIsNone(decide("arquiteto", tool, {"file_path": rel}, str(repo), VAULT), rel)
+            wt = repo / ".claude" / "worktrees" / "w"
+            wt.mkdir(parents=True)
+            for rel in ["docs/adr/0001-x.md", "api/openapi.yaml"]:
+                self.assertIsNone(self._w(str(wt / rel), wt), rel)
+                self.assertIsNone(self._w(str(wt / rel), repo), rel)
+
+    def test_bloqueados(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(os.path.realpath(tmp))
+            for rel in ["src/main/A.kt", "build.gradle.kts", "config/app.yaml", ".claude/agents/x.md",
+                        "docs/x.txt"]:
+                self.assertIsNotNone(self._w(rel, repo), rel)
+            self.assertIsNotNone(self._w(str(soul_guard.souls_dir() / "x.md"), repo))
+            self.assertIsNotNone(self._w(os.path.expanduser("~/.claude/CLAUDE.md"), repo))
+            (repo / "src" / "main").mkdir(parents=True)
+            (repo / "src" / "main" / "A.kt").write_text("x")
+            (repo / "docs").mkdir()
+            (repo / "docs" / "nota.md").symlink_to("../src/main/A.kt")
+            self.assertIsNotNone(self._w("docs/nota.md", repo))
+            (repo / ".claude" / "agents").mkdir(parents=True)
+            (repo / "ldocs").symlink_to(repo / ".claude")
+            self.assertIsNotNone(self._w("ldocs/agents/x.md", repo))
+
+    def test_yaml_so_com_api_relativo(self):
+        self.assertIsNotNone(self._w("/srv/api/proj/src/app.yaml", "/srv/api/proj"))
+        self.assertIsNone(self._w("/srv/api/proj/api/v1/o.yml", "/srv/api/proj"))
+        self.assertTrue(soul_guard.arquiteto_editavel("api/o.yaml"))
+        self.assertFalse(soul_guard.arquiteto_editavel("config/o.yaml"))
+        self.assertFalse(soul_guard.arquiteto_editavel("/r/.claude/worktrees/x/src/o.yaml"))
+        self.assertTrue(soul_guard.arquiteto_editavel("/r/.claude/worktrees/x/api/o.yaml"))
+
+    def test_bash(self):
+        self.assertIsNotNone(decide("arquiteto", "Bash", {"command": "git push origin master"}, "/r", VAULT))
+        self.assertIsNone(decide("arquiteto", "Bash", {"command": "git log -5"}, "/r", VAULT))
+
+
 class RevisorSemBashTest(unittest.TestCase):
     def test_qualquer_bash_bloqueado(self):
         for c in ["git status", "npm audit --json", "ls", "echo oi", "date"]:

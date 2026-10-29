@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from soul_guard import protegido_str, is_test_path, orquestrador_editavel, relatorio_testador  # noqa: E402
+from soul_guard import protegido_str, is_test_path, orquestrador_editavel, arquiteto_editavel, relatorio_testador  # noqa: E402
 
 DECL = [r"@Test\b", r"^\s*def test_", r"^\s*(async\s+)?(it|test)\s*\(", r"^\s*func Test"]
 ASSERT = [r"\bassert", r"\bexpect\s*\(", r"assertThat", r"\bverify\s*\(", r"\.should"]
@@ -25,7 +25,7 @@ SKIP_RE = [re.compile(p) for p in SKIP]
 
 # Todas as souls; testador, desenvolvedor e orquestrador têm regras próprias aqui.
 # "orquestrador-etapa" é o nome antigo do orquestrador, aceito por causa de commits históricos.
-KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "desenvolvedor", "testador", "revisor-seguranca",
+KNOWN_SOULS = {"orquestrador", "orquestrador-etapa", "arquiteto", "revisor-arquitetura", "desenvolvedor", "testador", "revisor-seguranca",
                "brain-escriba", "brain-curador"}
 
 
@@ -141,6 +141,12 @@ def check(repo: str, base: str, head: str) -> tuple[list[str], list[str]]:
                 if not orquestrador_editavel(f):
                     findings.append(f"[ORQUESTRADOR_CODIGO] {short} {f}: orquestrador alterou arquivo fora de "
                                     ".md e .superpowers/, ou sob .claude/ ou nas souls")
+        if "arquiteto" in souls:
+            for f in files:
+                if not arquiteto_editavel(f):
+                    findings.append(f"[ARQUITETO_CODIGO] {short} {f}: arquiteto alterou arquivo fora de documentos e "
+                                    "diagramas (.md, .mmd, .puml, .plantuml, .drawio, YAML sob api/), "
+                                    "ou sob .claude/ ou nas souls")
         if "desenvolvedor" in souls:
             for f in files:
                 if f in testador_tests:

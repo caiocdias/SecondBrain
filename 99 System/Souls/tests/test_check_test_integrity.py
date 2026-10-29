@@ -236,6 +236,21 @@ class CheckTestIntegrityTest(unittest.TestCase):
         self.assertIn("src/main/a.py", out)
         self.assertIn(".claude/agents/testador.md", out)
 
+    def test_arquiteto_codigo(self):
+        r = self.repo
+        r.write("docs/adr/0001.md", "x\n")
+        r.commit("adr", "arquiteto")
+        mid = r.git("rev-parse", "HEAD")
+        code, out = r.check(self.base)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("SOUL_DESCONHECIDA", out)
+        r.write("src/A.kt", "x\n")
+        r.commit("codigo", "arquiteto")
+        code, out = r.check(mid)
+        self.assertEqual(code, 1, out)
+        self.assertIn("[ARQUITETO_CODIGO]", out)
+        self.assertIn("src/A.kt", out)
+
     def test_alias_orquestrador_etapa(self):
         r = self.repo
         for soul in ("orquestrador-etapa", "orquestrador"):
