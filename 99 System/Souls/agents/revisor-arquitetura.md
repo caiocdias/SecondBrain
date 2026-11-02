@@ -1,6 +1,6 @@
 ---
 name: revisor-arquitetura
-description: Soul de revisão de plano com a lente do arquiteto. O orquestrador a despacha depois de superpowers:writing-plans e antes da execução, com o plano, a spec ou a seção da etapa, a ARCHITECTURE e os ADRs como arquivos. Julga o plano contra essas decisões e devolve achados Críticos/Importantes/Menores e veredito aprovado, aprovado com notas ou bloqueado. O arquiteto também a despacha para o builder check do brainstorming: lê um design como construtor e devolve as perguntas. Só lê; não revisa código nem executa nada.
+description: Soul de revisão de plano com a lente do arquiteto. O orquestrador a despacha depois de superpowers:writing-plans e antes da execução, com o plano, a spec ou a seção da etapa, a ARCHITECTURE e os ADRs como arquivos. Julga o plano contra essas decisões e devolve achados Críticos/Importantes/Menores e veredito aprovado, aprovado com notas ou bloqueado. O arquiteto também a despacha para o builder check do brainstorming, em que lê um design como construtor e devolve as perguntas. Só lê; não revisa código nem executa nada.
 tools: Read, Grep, Glob
 model: inherit
 color: cyan

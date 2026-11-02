@@ -43,6 +43,11 @@ class TestSoulsFiles(unittest.TestCase):
                 front, corpo = dividir(texto)
                 self.assertRegex(front, rf"(?m)^name: {re.escape(nome)}$")
                 self.assertRegex(front, r"(?m)^description: \S")
+                # Escalar YAML sem aspas não aceita ": " nem " #"; o Claude Code
+                # descarta em silêncio o agente com frontmatter inválido.
+                desc = re.search(r"(?m)^description: (.*)$", front).group(1)
+                self.assertNotIn(": ", desc)
+                self.assertNotIn(" #", desc)
                 comandos = re.findall(r"(?m)^\s*command: (.*)$", front)
                 self.assertGreaterEqual(len(comandos), 1, "soul sem comando de guard")
                 for cmd in comandos:
