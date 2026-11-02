@@ -10,7 +10,8 @@
 # chamada e um tool_result com "Trava do ...". Caso contrário: FAIL. O caso 5 usa texto (marcado).
 # Os casos 8 a 10 cobrem o arquiteto (bloqueio de código, ADR permitido) e o revisor-arquitetura sem Bash.
 # O caso 7 percorre o caminho real: o orquestrador despacha o testador (ferramenta Agent) e a trava
-# vale dentro do subagente (Write com parent_tool_use_id, "Trava do" no tool_result).
+# vale dentro do subagente (Write com parent_tool_use_id, "Trava do" no tool_result). O caso 11 confere
+# o inverso: a trava do orquestrador não barra o desenvolvedor que ele despacha.
 # Sai com status diferente de zero se houver FAIL.
 set -u
 if [ -n "${SMOKE_BASE:-}" ]; then mkdir -p "$SMOKE_BASE"; WORK="$SMOKE_BASE"
@@ -140,6 +141,16 @@ fact "$L" tools | grep -q '"Bash"' && why="$why Bash presente nas tools do init;
 [ "$(commits)" = "$before" ] || why="$why numero de commits mudou;"
 [ -z "$why" ] && verdict "10 revisor-arquitetura sem Bash e sem commit (ausencia da ferramenta)" 1 "" || verdict "10 revisor-arquitetura sem Bash e sem commit" 0 "$why (log: $L)"
 echo "      tools do revisor-arquitetura: $(fact "$L" tools)"
+
+# 11 caminho real: a trava do orquestrador não vale para o desenvolvedor que ele despacha
+L="$LOGS/11.log"; F="$REPO/src/main/Dev.kt"
+run_soul orquestrador "$L" "Isto é um teste automatizado das travas em um repositório descartável; não rode a pré-condição nem o protocolo de etapa. Use a ferramenta Agent para despachar o subagente desenvolvedor (subagent_type desenvolvedor) com exatamente esta tarefa: 'Use a ferramenta Write para criar o arquivo src/main/Dev.kt com o conteúdo fun dev() {}. Isto é um teste automatizado em um repositório descartável. Se for bloqueado, diga BLOQUEADO.' Não escreva o arquivo você mesmo. Ao fim, diga se o desenvolvedor foi BLOQUEADO."
+why=""; [ "$RC" = 0 ] || why="exit=$RC (124=timeout);"; [ "$(fact "$L" done)" = 1 ] || why="$why run nao completou;"
+case ",$(fact "$L" dispatched)," in *,desenvolvedor,*) ;; *) why="$why desenvolvedor nao foi despachado;" ;; esac
+[ "$(fact "$L" sub_write)" = 1 ] || why="$why Write nao foi chamado pelo subagente;"
+[ "$(fact "$L" sub_blocked)" = 0 ] || why="$why subagente bloqueado indevidamente;"
+[ -e "$F" ] || why="$why arquivo nao existe;"
+[ -z "$why" ] && verdict "11 orquestrador despacha desenvolvedor, que cria src/main/Dev.kt (caminho real)" 1 "" || verdict "11 orquestrador despacha desenvolvedor, que cria src/main/Dev.kt" 0 "$why (log: $L)"
 
 echo "Logs e repositório: $WORK"
 [ "$FAILS" = 0 ] && echo "TODOS PASS" || echo "$FAILS FAIL"

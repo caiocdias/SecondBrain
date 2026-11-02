@@ -410,6 +410,23 @@ def decide(role: str, tool_name: str, tool_input: dict, cwd: str, vault: Path) -
     return None
 
 
+# Papéis de sessão principal (`claude --agent <papel>`): o hook do frontmatter vale para a sessão
+# inteira, inclusive para os subagentes que ela despacha, que têm as próprias travas.
+SESSAO_PRINCIPAL = {"orquestrador", "arquiteto"}
+
+
+def chamada_de_subagente(role: str, data: dict) -> bool:
+    """A chamada veio de um subagente despachado pela sessão principal do papel: o payload traz
+    `agent_id` (só existe dentro de subagente) e um `agent_type` diferente do próprio papel.
+    Sem `agent_type`, ou com o próprio papel rodando como subagente, a trava continua valendo."""
+    if role not in SESSAO_PRINCIPAL:
+        return False
+    agent_id, agent_type = data.get("agent_id"), data.get("agent_type")
+    if not (isinstance(agent_id, str) and agent_id and isinstance(agent_type, str) and agent_type):
+        return False
+    return agent_type.rsplit(":", 1)[-1] != role
+
+
 def _main(argv):
     if len(argv) != 2 or argv[1] not in ROLES:
         print("Trava das souls: papel ausente ou inválido; bloqueado por segurança. "
@@ -420,6 +437,8 @@ def _main(argv):
         print("Trava das souls: payload do hook inválido; bloqueado por segurança.", file=sys.stderr)
         return 2
     role = argv[1]
+    if chamada_de_subagente(role, data):
+        return 0
     vault = vault_root() if role == "escriba" else Path(".")
     msg = decide(role, str(data.get("tool_name", "")), data.get("tool_input") or {},
                  data.get("cwd") or os.getcwd(), vault)

@@ -444,6 +444,44 @@ class ArquitetoTest(unittest.TestCase):
         self.assertIsNone(decide("arquiteto", "Bash", {"command": "git log -5"}, "/r", VAULT))
 
 
+class SubagenteDaSessaoPrincipalTest(unittest.TestCase):
+    """A trava do frontmatter de `claude --agent <papel>` vale para a sessão inteira; os
+    subagentes despachados (agent_id no payload) seguem só as próprias travas."""
+
+    def run_cli(self, role, extra, path="/r/tests/unit/test_x.py", tool="Write"):
+        payload = {"tool_name": tool, "tool_input": {"file_path": path, "command": "git push origin x"},
+                   "cwd": "/r", **extra}
+        return subprocess.run(["python3", "-I", str(SCRIPTS / "soul_guard.py"), role],
+                              input=json.dumps(payload), capture_output=True, text=True)
+
+    def test_subagente_do_orquestrador_e_do_arquiteto_liberado(self):
+        for role in ("orquestrador", "arquiteto"):
+            for tipo in ("desenvolvedor", "testador", "plugin:desenvolvedor"):
+                r = self.run_cli(role, {"agent_id": "a1", "agent_type": tipo})
+                self.assertEqual(r.returncode, 0, (role, tipo, r.stderr))
+        r = self.run_cli("arquiteto", {"agent_id": "a1", "agent_type": "brain-escriba"}, tool="Bash")
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_sessao_principal_continua_travada(self):
+        for role in ("orquestrador", "arquiteto"):
+            for extra in ({}, {"agent_type": role}, {"agent_type": "desenvolvedor"},
+                          {"agent_id": "a1"}, {"agent_id": "", "agent_type": "desenvolvedor"},
+                          {"agent_id": "a1", "agent_type": ""}, {"agent_id": 1, "agent_type": "testador"},
+                          {"agent_id": "a1", "agent_type": role},
+                          {"agent_id": "a1", "agent_type": "x:" + role}):
+                r = self.run_cli(role, extra)
+                self.assertEqual(r.returncode, 2, (role, extra))
+                self.assertIn("Trava do", r.stderr)
+
+    def test_papeis_de_subagente_nao_sao_isentos(self):
+        sub = {"agent_id": "a1", "agent_type": "general-purpose"}
+        self.assertEqual(self.run_cli("testador", sub, path="/r/src/main/A.kt").returncode, 2)
+        for role in ("desenvolvedor", "testador", "curador", "escriba"):
+            self.assertEqual(self.run_cli(role, sub, tool="Bash").returncode, 2, role)
+        for role in ("desenvolvedor", "testador", "revisor", "escriba", "curador"):
+            self.assertFalse(soul_guard.chamada_de_subagente(role, sub), role)
+
+
 class RevisorSemBashTest(unittest.TestCase):
     def test_qualquer_bash_bloqueado(self):
         for c in ["git status", "npm audit --json", "ls", "echo oi", "date"]:
