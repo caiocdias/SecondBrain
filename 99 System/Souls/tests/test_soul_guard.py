@@ -456,7 +456,7 @@ class SubagenteDaSessaoPrincipalTest(unittest.TestCase):
 
     def test_subagente_do_orquestrador_e_do_arquiteto_liberado(self):
         for role in ("orquestrador", "arquiteto"):
-            for tipo in ("desenvolvedor", "testador", "plugin:desenvolvedor"):
+            for tipo in ("desenvolvedor", "testador", "plugin:desenvolvedor", "curadoria-leitor-visual"):
                 r = self.run_cli(role, {"agent_id": "a1", "agent_type": tipo})
                 self.assertEqual(r.returncode, 0, (role, tipo, r.stderr))
         r = self.run_cli("arquiteto", {"agent_id": "a1", "agent_type": "brain-escriba"}, tool="Bash")

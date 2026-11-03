@@ -57,6 +57,16 @@ class TestSoulsFiles(unittest.TestCase):
                     self.assertRegex(corpo, rf"(?m)^{re.escape(t)}\s*$")
                 self.assertLessEqual(len(corpo.strip("\n").splitlines()), 120)
 
+    def test_orquestrador_despacha_souls_e_curadoria_sem_general_purpose(self):
+        front, _ = dividir((AGENTS / "orquestrador.md").read_text(encoding="utf-8"))
+        tools = re.search(r"(?m)^tools: (.*)$", front).group(1)
+        tipos = {t.strip() for t in re.search(r"Agent\(([^)]*)\)", tools).group(1).split(",")}
+        curadoria = {"curadoria-leitor-visual", "curadoria-auditor-visual", "curadoria-investigador",
+                     "curadoria-corretor", "curadoria-verificador"}
+        souls = {"desenvolvedor", "testador", "revisor-seguranca", "revisor-arquitetura", "brain-escriba"}
+        self.assertEqual(tipos, souls | curadoria)
+        self.assertNotIn("general-purpose", tipos)
+
     def test_escriba_ensina_o_comando_uuid_que_o_guard_aceita(self):
         import sys
         sys.path.insert(0, str(AGENTS / "scripts"))
