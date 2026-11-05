@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Docker, observabilidade e CI - ada44296]]"
+  - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
+  - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
 ---
 # ZenyHotelManager - Docker, observabilidade e CI
 
@@ -39,8 +41,37 @@ Texto literal do `CLAUDE.md` do repositório, linhas 540–563, no commit `a6c0f
 
 As actions ficam fixadas por SHA de commit, com a versão num comentário. O Dependabot (`.github/dependabot.yml`, decidido pelo usuário em 2026-10-13) abre por mês um único PR agrupado que atualiza as actions, trocando o SHA e o comentário juntos; dependências do Gradle e imagens Docker não entram nele. Numa atualização manual, troque também os dois juntos. Nenhum segredo é usado, e o token só lê o repositório (`permissions: contents: read`). Antes de subir uma mudança de API, rode `.github/scripts/check-api-breaking.sh` localmente. Valide o workflow com `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/ci.yml`.
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### Lockfiles na imagem (M5 E13, 2026-10-28)
+
+Origem: [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]].
+
+- O `.dockerignore` (lista de permissão) passa a deixar entrar `gradle.lockfile` e `buildscript-gradle.lockfile`, além dos itens que a nota já lista. O `docker/Dockerfile` os copia junto de `settings.gradle.kts` e `build.gradle.kts`, antes do `./gradlew --version`.
+- Sem eles, a imagem falha no `COPY`; com um lockfile defasado, falha no modo estrito.
+- O cache de dependências do BuildKit passa a ser refeito quando o catálogo ou um lockfile muda.
+- A CI não mudou nesta etapa. O `osv-scanner` fica fora dela por decisão do lote; a E14 acrescenta o passo de conferência dos lockfiles (item 2).
+
+*Nota do curador:* "item 2" é o travamento de dependências, em [[ZenyHotelManager - Ambiente, banco, chaves e build]]. O passo de conferência já existe (E14, abaixo).
+
+### Passo "Lockfiles em dia com o catálogo" (M5 E14, 2026-11-04)
+
+Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]].
+
+- O job `build` de `.github/workflows/ci.yml` ganhou o passo **"Lockfiles em dia com o catálogo"**, antes do build completo.
+  - O que roda: `./gradlew dependencies --write-locks`.
+  - Quando falha: com `::error::`, se `git diff --exit-code -- '*.lockfile'` acusar mudança ou se `git status --porcelain -- '*.lockfile'` não sair vazio (lockfile novo não rastreado).
+  - Por que fica dentro de um `if`: para a mensagem de erro sair mesmo sob `bash -e`.
+- Verificado localmente, com o bloco `run` extraído do YAML e rodado com `bash --noprofile --norc -eo pipefail` em clones descartáveis: árvore em dia dá exit 0 (duas vezes, sem sujar a árvore); `shedlock = "7.10.0"` no catálogo, dependência nova (`commons-pool2`), lockfile novo não rastreado e restrição do freemarker removida dão exit 1. Sem o passo, o build estrito não falharia no rebaixamento nem na remoção da restrição, porque o Gradle aplica a versão travada como `strictly`.
+- A ARCHITECTURE §17 cita a conferência dos lockfiles; o README e o comentário do `build.gradle.kts` também foram atualizados.
+- **O primeiro run no GitHub ainda não existe** (depende do push, que é do usuário).
+
 ---
 
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Docker, observabilidade e CI - ada44296]] (capture_id: ada44296-529e-4b1f-9386-ab1e5da05933): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 540–563, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): lockfiles no `.dockerignore` e no `Dockerfile`, em "Atualizações por capturas".
+- 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): passo "Lockfiles em dia com o catálogo" da CI, em "Atualizações por capturas".

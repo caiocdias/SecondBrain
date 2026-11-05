@@ -10,6 +10,8 @@ sources:
   - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]]"
   - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]]"
   - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
+  - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
+  - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
 ---
 # ZenyHotelManager - Estado por marco
 
@@ -37,6 +39,57 @@ Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integra
 
 *Nota do curador:* o que cada etapa acrescentou ao código está nas seções "Atualizações por capturas" de [[ZenyHotelManager - Hospedagem e recepção]] (E04 a E06), [[ZenyHotelManager - Módulo billing (contas, roteamento e taxa de serviço)]] e [[ZenyHotelManager - Módulo billing (caixa, pagamentos, caução e encerramento)]] (E04), [[ZenyHotelManager - Testes de integração]] (E05) e [[ZenyHotelManager - Schemas, migrações e views de relatório]] (E06).
 
+### M5 E13 (2026-10-28)
+
+Origem: [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]], que substitui a linha do M5 da captura da integração de E04 a E06 (acima).
+
+- M5 em andamento: E01 a E06 e E13 concluídas, na `main` e em `origin/main` até `bbe0150` (2026-10-28). CI do push da integração verde no run `40788327598`, nos três jobs (build, oasdiff e imagem).
+- A E13 (travamento de dependências do Gradle, decisão D3 do usuário) foi executada pelas souls na branch `roadmap/m5-recepcao-fnrh`. A branch foi integrada por fast-forward e apagada, junto com o worktree, a pedido do usuário ausente.
+- Nova etapa E14 (correção das vulnerabilidades High/Critical apontadas pelo scanner), `#pendente` e primeira da fila. Depois dela, ficam elegíveis a E07 e a E10. A E12 (gate) agora depende da E14 no lugar da E13.
+- A revisão humana da E13 fica pendente até o usuário voltar.
+
+Fatos:
+
+- Revisão final da E13 pelo `revisor-seguranca`: "With fixes", sem Critical; os três Important (handoff vazio, critério 3 só para versão maior, `docker build` sem prova no HEAD) foram resolvidos no fechamento.
+- `./gradlew build` na `main` integrada: "BUILD SUCCESSFUL in 8m 51s" (antes do push); no commit `c1acc86`, 1287 testes em 158 classes, 0 falhas. `checkOpenApi` verde, `api/openapi.yaml` sem mudança, oasdiff contra `94a24a9`: "No changes detected". `docker build -f docker/Dockerfile .` em `a5dc411`: exit 0.
+- Antes da E13, na base `94a24a9`, `osv-scanner scan source -r .` respondia "No package sources found" (osv-scanner 2.7.0).
+- Commits da etapa: `87c0b15`, `1a4b0ab`, `6ba3ac1`, `c1acc86`, `a5dc411`, o de fechamento (`11cacb0`) e o registro do run da CI (`bbe0150`).
+
+Decisões do lote E13, a confirmar. O usuário estava ausente e delegou ao orquestrador. Por isso, todas foram decididas pela opção recomendada em nome dele, depois de pesar prós e contras, e **falta a confirmação dele**:
+
+- (a) as vulnerabilidades High/Critical numa etapa própria (E14), primeira da fila;
+- (b) o rebaixamento silencioso no catálogo aceito como comportamento do Gradle, documentado, e fechado pelo passo de CI da E14;
+- (c) o `osv-scanner` fora do CI por ora;
+- (d) a verificação de checksums (`gradle/verification-metadata.xml`) para depois (indicada para o M8);
+- (e) o `settings-gradle.lockfile` versionado;
+- (f) a revisão humana da E13 pendente, com a branch já integrada a pedido do usuário.
+
+*Nota do curador:* segundo a captura, no handoff a decisão (d) diz apenas "a verificação de checksums fica para depois"; a indicação do M8 vem do pedido do orquestrador. A linha da E14 como `#pendente` e primeira da fila foi substituída pela captura da E14 (abaixo).
+
+### M5 E14 (2026-11-04)
+
+Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]], que substitui a linha do M5 da captura da E13.
+
+- M5 em andamento: E01 a E06, E13 e E14 concluídas.
+- A E14 está na branch `roadmap/m5-recepcao-fnrh` (commits `be152b2` a `2c72294` e o commit de fechamento) e ainda **não** está em `origin/main`. O usuário pediu para deixar a `main` local pronta para `git push origin main` no fim do lote; o push é dele.
+- Próximas elegíveis: E07 e depois E10. A E14 deixa de ser "primeira da fila".
+- A revisão humana da E13 continua pendente.
+
+Fatos:
+
+- Scanner (`osv-scanner -r` em cópias limpas por `git archive`): antes, 31 vulnerabilidades (5 Critical, 15 High); depois, 5 vulnerabilidades (0 Critical, 0 High, 2 Medium, 3 Low), sobre 415 + 74 pacotes.
+- `./gradlew build` no HEAD `2c72294`: "BUILD SUCCESSFUL in 7m 38s", 1287 testes em 158 classes, 0 falhas e 0 erros (a base `15bbcdb` também tinha 1287 e 0 falhas). `checkOpenApi` verde, `api/openapi.yaml` sem mudança. `.github/scripts/check-api-breaking.sh 15bbcdb`: "No changes detected". `docker build -f docker/Dockerfile .`: exit 0. `./gradlew lint`: verde.
+- Revisão de arquitetura do plano: aprovado com notas, em 1 rodada (a revisão inicial bloqueou por dois Importantes, já corrigidos no plano). Revisões das duas tarefas: "Approved", 0 Critical e 0 Important. Revisão final (`revisor-seguranca`): "With fixes", sem Critical; o Important era o handoff vazio, resolvido no fechamento; Minors M1 e M3 na onda `2c72294`; M2 (imagem e oasdiff provados só em `fa08f85`) refeito no HEAD `2c72294`. Verificação mecânica (`check_test_integrity.py --base 15bbcdb`): "OK: nenhum apontamento".
+- Commits da etapa: `be152b2`, `b09be76`, `2eefa28`, `fa08f85` (Boot 4.1.2, plataforma Jackson 2, restrição do freemarker, lockfiles), `3f47b39` (passo da CI, README, comentário do build, ARCHITECTURE §17), `2c72294` (comentários das restrições) e o commit de fechamento.
+
+Decisões do lote E14, a confirmar. O usuário delegou a escolha em 2026-11-04. As decisões abaixo foram tomadas pela opção recomendada, em nome dele, pelo orquestrador, depois de pesar prós e contras. **Falta a confirmação dele.**
+
+- (a) `opentelemetry-api` 1.62.0 aceito como risco registrado até o Boot trazer ≥ 1.67.0. **Tem prazo: resolver antes da operação real (M8)**; cada revisão final reavalia o caso. A favor: o sistema ainda não opera, a correção pelo BOM evita uma subida de minor fora do escopo e o scanner volta a mostrar o risco. Contra: o risco fica aberto até lá. Descartadas: plataforma `opentelemetry-bom` 1.67.0 agora (minor de toda a família, à frente do BOM do Boot e sem teste da ponte do Micrometer) e limpar o `tracestate` no proxy (mexe no compose e perde o contexto de trace dos clientes).
+- (b) `commons-lang3` 3.16.0 (Medium, plugins) e `logback-core` 1.3.16 (Low, `ktlint`) aceitos: só rodam no build e não são alcançáveis por entrada externa. Descartadas: restrições próprias, que dariam manutenção sem ganho no servidor.
+- (c) Jackson 2 na 2.22.4 (último patch da linha), em vez do piso 2.22.3: fecha as mesmas 7 GHSA e evita ficar um patch atrás.
+
+*Nota do curador:* o hash do commit de fechamento da E14 não consta na captura. O que a E13 e a E14 mudaram no código está nas seções "Atualizações por capturas" de [[ZenyHotelManager - Ambiente, banco, chaves e build]] e [[ZenyHotelManager - Docker, observabilidade e CI]].
+
 ---
 
 ## Proveniência
@@ -46,3 +99,5 @@ Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integra
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E05 - 0ebc2e6a]] (capture_id: 0ebc2e6a-f82e-4b92-9941-f42708feb2a2): etapa E05 concluída (estado substituído pela captura da integração).
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E06 - c3d1beeb]] (capture_id: c3d1beeb-2076-413c-af63-4e1e43af516f): etapa E06 concluída (estado substituído pela captura da integração).
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): estado do M5 depois da integração de E04 a E06 à `main` e do push.
+- 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): estado do M5 após a E13, fatos e decisões do lote E13 (a confirmar); a linha da E14 como primeira da fila foi substituída pela captura da E14.
+- 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): estado do M5 após a E14 (ainda fora de `origin/main`), fatos e decisões do lote E14 (a confirmar).

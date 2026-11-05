@@ -25,9 +25,10 @@ Documentação, mensagens ao usuário e commits em pt-BR; código, API e banco e
 
 ## Estado
 
-- M0 a M4 concluídos. M5 em andamento: E01 a E06 na `main` e em `origin/main` (até `4a91340`, 2026-10-23); próximas elegíveis E07 e E10. Dependências e histórico em [[ZenyHotelManager - Estado por marco]].
+- M0 a M4 concluídos. M5 em andamento: E01 a E06 e E13 na `main` e em `origin/main` (até `bbe0150`, 2026-10-28); E14 concluída na branch `roadmap/m5-recepcao-fnrh`, ainda fora de `origin/main` (push do usuário). Próximas elegíveis: E07 e depois E10. Revisão humana da E13 pendente. Detalhes em [[ZenyHotelManager - Estado por marco]].
 - Referência técnica no brain desde 2026-10-22 (decisão do usuário), ainda sem commit no repositório: `CLAUDE.md` enxuto e hook em `.claude/settings.json` (`SessionStart` e `SubagentStart`) com o `load-brain.py` da skill `development-roadmap`, que exige `BRAIN: carregado (ZenyHotelManager)`. Testado em sessão real e em subagente.
-- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers (protocolo, bloco "Second Brain" e um "Prompt de execução" por roadmap); M0 a M4 no formato antigo. Primeiro lote no formato novo: M5 E04 a E06. Desde 2026-10-27 (pedido do usuário), M5 a M10 executam pelas souls do Second Brain: sessão iniciada com `claude --agent orquestrador`, tarefas por `desenvolvedor` → `testador` → verificação mecânica → `revisor-seguranca` e captura pelo `brain-escriba`. O M5 ganhou a E13 (travamento de dependências do Gradle, decisão D3 do usuário), primeira da fila, para o `osv-scanner` da revisão final enxergar o projeto (hoje responde "No package sources found").
+- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers; M0 a M4 no formato antigo. Desde 2026-10-27 (pedido do usuário), M5 a M10 executam pelas souls do Second Brain: `claude --agent orquestrador`, tarefas por `desenvolvedor` → `testador` → verificação mecânica → `revisor-seguranca` e captura pelo `brain-escriba`.
+- Dependências travadas por lockfiles em modo estrito (E13), conferidos pela CI, e 0 Critical/High no `osv-scanner` (E14): ver [[ZenyHotelManager - Ambiente, banco, chaves e build]] antes de mexer em dependências.
 - Git (decisão do usuário): a execução de roadmap roda na branch `roadmap/<slug>`, com commits por tarefa do superpowers; merge, PR e push só com a decisão do usuário no fim do lote. Fora do roadmap: trabalhar na `main`, commit só a pedido.
 
 ## Notas do projeto
@@ -78,6 +79,7 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 
 - O comando do hook (`python3` e shell POSIX) ainda não foi testado no Windows.
 - Decisões do lote M5 E04 a E06 (opção recomendada): não consta se a entrevista as confirmou. Lista em [[ZenyHotelManager - Hospedagem e recepção]].
+- Decisões dos lotes E13 (a–f) e E14 (a–c), tomadas pela opção recomendada em nome do usuário: falta a confirmação dele. Lista em [[ZenyHotelManager - Estado por marco]]; o risco aceito do `opentelemetry-api` 1.62.0 tem prazo (antes do M8).
 
 ## Conhecimento relacionado
 
@@ -91,3 +93,5 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - hook compartilhado do brain - e26f9f6f]] (capture_id: e26f9f6f-f541-4339-bc7d-b74de3e5599f): hook compartilhado da skill `development-roadmap` e linha `BRAIN: carregado`.
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - atualização roadmaps M5 a M10 no formato superpowers - d76e6324]] (capture_id: d76e6324-2c69-45d7-b242-d274e8c8ac2e): roadmaps M5 a M10 no formato superpowers e regras de branch e capturas.
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): Estado do M5 após E04 a E06 (as capturas dessas etapas estão nas notas de tema).
+- 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): Estado do M5 após a E13 e decisões do lote (Perguntas abertas).
+- 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): Estado do M5 após a E14 e decisões do lote (Perguntas abertas).

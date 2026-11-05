@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Ambiente, banco, chaves e build - 2f6c86e6]]"
+  - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
+  - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
 ---
 # ZenyHotelManager - Ambiente, banco, chaves e build
 
@@ -44,8 +46,60 @@ Profiles: `local` (desenvolvimento) e `prod` (implantação), em `src/main/resou
 
 **Versões** de dependências e plugins ficam só em `gradle/libs.versions.toml`. Os BOMs do Spring Boot e do Spring Modulith entram como `platform(...)`; libs gerenciadas por eles ficam no catálogo sem versão. Nunca escreva versão literal no `build.gradle.kts`. O detekt está na linha 2.0 (alpha), a única que entende Kotlin 2.4; sua configuração fica em `config/detekt/detekt.yml`, sobre os padrões. O estilo do ktlint (`ktlint_official`, 120 colunas) fica no `.editorconfig`.
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### Travamento de dependências (M5 E13, 2026-10-28)
+
+Origem: [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]. Complementa o parágrafo "Versões".
+
+**Travamento de dependências (M5 E13).**
+
+- `build.gradle.kts` liga `dependencyLocking { lockAllConfigurations(); lockMode = LockMode.STRICT }` no projeto e o mesmo bloco dentro de `buildscript { }`, para o classpath dos plugins.
+- Lockfiles versionados na raiz, gerados pelo Gradle e nunca editados à mão:
+  - `gradle.lockfile`: todas as configurações, inclusive detekt, ktlint, kover e o compilador Kotlin (415 pacotes);
+  - `buildscript-gradle.lockfile`: os plugins (74 pacotes);
+  - `settings-gradle.lockfile`: hoje só `empty=incomingCatalogForLibs0`, versionado para a regeneração não sujar a árvore.
+- **Convenção:** toda mudança no catálogo ou num plugin regrava os lockfiles no mesmo commit, com `./gradlew dependencies --write-locks`. Os revisores conferem catálogo, `build.gradle.kts` e lockfiles juntos.
+- **Comportamento do modo estrito, medido** (numa cópia descartável, revertido). Falham o build:
+  - versão maior que a travada (`{strictly X} … enforced by Dependency Locking`);
+  - dependência nova fora do lockfile (`… is not part of the dependency lock state`);
+  - lockfile ausente (`Locking strict mode: Configuration '…' is locked but does not have lock state`).
+- **Limitação:** uma versão **menor** no catálogo é ignorada em silêncio, e o build usa a travada (o Gradle a aplica como `strictly`). A E14 acrescenta à CI o passo `./gradlew dependencies --write-locks` seguido de `git diff --exit-code -- '*.lockfile'`, que pega essa divergência.
+- Os BOMs entram como `platform(...)` nativo, sem o plugin `io.spring.dependency-management`. Por isso as propriedades de versão do BOM do Spring Boot (`tomcat.version`) não valem; para fixar uma versão, use uma restrição de versão.
+- **Scanner:** `osv-scanner scan source -r .` na raiz lê os lockfiles. Dentro de um worktree em `.claude/worktrees/`, ele não vê nada, porque o `.gitignore` do checkout principal ignora essa pasta. Rode-o no checkout principal, numa cópia (`git archive HEAD`) ou com `--no-ignore`.
+
+*Nota do curador:* a frase "A E14 acrescenta à CI o passo…" ficou obsoleta com a E14 (abaixo): o passo agora existe ([[ZenyHotelManager - Docker, observabilidade e CI]]). A lista de vulnerabilidades levantada pelo scanner em 2026-10-28 (item 4 da captura da E13: 31 vulnerabilidades, 5 Critical e 15 High) foi substituída pelo resultado da E14 e não foi copiada; continua na captura arquivada.
+
+### Spring Boot 4.1.2 e restrições de versão (M5 E14, 2026-11-04)
+
+Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]. Complementa o parágrafo do travamento.
+
+- **Spring Boot 4.1.2** (plugin e BOM, no catálogo `gradle/libs.versions.toml`). Arrasta Tomcat 11.0.27, Jackson 3.1.7, Spring Framework 7.0.10, Spring Security 7.1.2, Hibernate 7.4.13, Micrometer 1.17.2, PostgreSQL JDBC 42.7.14 e, no classpath dos plugins, httpclient5 5.6.5. Os lockfiles continuam com 415 e 74 pacotes.
+- **Inventário das duas restrições de versão** (cada uma traz no catálogo o motivo, os GHSA e a condição de saída):
+
+| Restrição | Por quê | Sai quando |
+|---|---|---|
+| Plataforma do Jackson 2 na 2.22.4 (`jackson2 = "2.22.4"`, lib `jackson2-bom`, `implementation(platform(libs.jackson2.bom))`) | o springdoc 3.1.1 puxa a 2.22.1, e o BOM do Boot 4.1.2 fica na 2.21.7 | o springdoc ou o BOM do Boot trouxer o Jackson 2 ≥ 2.22.3 (conferir as 7 GHSA no scanner) |
+| freemarker 2.3.35 no classpath dos plugins (`freemarker = "2.3.35"`) | vem do kover 0.9.11 (`kover-features-jvm` → `intellij-coverage-reporter`), o último publicado | o kover trouxer o freemarker ≥ 2.3.35 |
+
+- A restrição do freemarker fica em `buildscript { dependencies { constraints { classpath(libs.freemarker) { because(…) } } } }`. O acessor `libs` compila dentro do `buildscript {}`.
+- **A restrição é piso de versão.** O passo da CI não acusa uma restrição que sobrou (BOM já alcançou a versão), mas acusa a **remoção** dela, porque o lockfile voltaria para a versão vulnerável. Numa subida futura do Boot ou do kover, confira a condição de saída de cada restrição.
+- **Substitui o item 4 da captura da E13 (vulnerabilidades):** com o scanner numa cópia limpa (`git archive`), o resultado antes (base `15bbcdb`) era "Total 11 packages affected by 31 known vulnerabilities (5 Critical, 15 High, 8 Medium, 3 Low, 0 Unknown)". Depois (lockfiles de `2c72294`) é "Total 3 packages affected by 5 known vulnerabilities (0 Critical, 0 High, 2 Medium, 3 Low, 0 Unknown)", sobre os mesmos 415 + 74 pacotes. Agora há **0 Critical e 0 High**. Resíduos:
+  - `io.opentelemetry:opentelemetry-api` 1.62.0 (GHSA-ccrj-gw8r-854m, Medium 5,3, runtime): CPU quadrática no `tracestate`, alcançável sem autenticação porque a propagação W3C está ligada em toda requisição em `application.yaml`. Sai quando o Boot trouxer ≥ 1.67.0;
+  - `org.apache.commons:commons-lang3` 3.16.0 (GHSA-j288-q9x7-2f5v, Medium 6,5): só no classpath dos plugins;
+  - `ch.qos.logback:logback-core` 1.3.16 (três Low): só na configuração `ktlint`.
+- **Torna obsoleta** a frase da captura da E13, item 2: "A E14 acrescenta à CI o passo `./gradlew dependencies --write-locks` seguido de `git diff --exit-code -- '*.lockfile'`". Agora é fato (item 3). A limitação do rebaixamento silencioso no catálogo passa a ser coberta pela CI, não só documentada.
+- A convenção continua: toda mudança de dependência ou plugin regrava os lockfiles no mesmo commit; agora a CI recusa o lockfile defasado.
+- Scanner da revisão final: rode-o fora do worktree (cópia por `git archive` ou `--no-ignore`). Neste ambiente, `osv-scanner -r <diretório>` equivale a `scan source -r`.
+
+*Nota do curador:* "item 3" refere-se ao item da captura da E14 sobre a CI, integrado em [[ZenyHotelManager - Docker, observabilidade e CI]]. A lista de vulnerabilidades é a do scanner em 2026-11-04 e muda com o tempo; rode o scanner de novo antes de agir. O risco aceito do OpenTelemetry e as demais decisões do lote estão em [[ZenyHotelManager - Estado por marco]].
+
 ---
 
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Ambiente, banco, chaves e build - 2f6c86e6]] (capture_id: 2f6c86e6-ed13-4195-b090-c2817117526b): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 37–64, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): travamento de dependências do Gradle (lockfiles, modo estrito, limitação do rebaixamento, scanner), em "Atualizações por capturas"; a lista de vulnerabilidades da captura não foi copiada por estar substituída pela E14.
+- 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): Spring Boot 4.1.2, inventário das restrições de versão e vulnerabilidades residuais, em "Atualizações por capturas".
