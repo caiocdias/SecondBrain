@@ -150,3 +150,11 @@ Estas mudanças fazem parte do escopo. Elas mexem em `99 System/AI/` e, portanto
 - Como validar cada soul antes de usá-la de verdade, por exemplo: tentar fazer o testador editar código de produção e confirmar o bloqueio.
 
 Nota (2026-10-29): as souls `arquiteto` e `revisor-arquitetura` e a revisão de plano antes da execução estão em [`DESIGN-arquiteto.md`](DESIGN-arquiteto.md); este documento não foi reescrito.
+
+Nota (2026-11-05, decisão do usuário): a medição das etapas do ZenyProjectHandler mostrou que 59% do tempo dos subagentes era do desenvolvedor, 33% do testador e 8% das revisões, com cerca de metade do tempo do desenvolvedor e do testador esperando comandos. Por isso, o fluxo da §5 mudou, e o texto vigente vive nas souls:
+- o testador por tarefa ficou só para tarefas `Risco: alto`, para as lacunas de teste apontadas pela revisora e para uma passada por etapa sobre o diff inteiro. Depois de uma correção, ele não refaz a análise;
+- a suíte inteira deixou de rodar a cada commit: o desenvolvedor roda os testes da área por commit e a suíte uma vez antes do DONE e de cada rodada devolvida;
+- o plano estima cada tarefa (até ~45 min) e declara `Depende de` e `Risco`;
+- tarefas independentes com arquivos disjuntos rodam em ondas paralelas de até 3, cada uma em worktree próprio, integradas em série com rebase e fast-forward e a suíte inteira por onda (`orquestrador.md`, passo 3a);
+- qualquer necessidade de intervenção é decidida pela opção recomendada, depois de pesar prós e contras, com a ruling registrada. Só decisão de arquitetura ou system design espera o usuário;
+- o lote termina integrado: merge local `--no-ff` na branch principal depois de atualizar a branch e passar o gate, repositório limpo para o próximo orquestrador e `git push origin <principal>` pronto, que continua com o usuário (`orquestrador.md`, passo 6).

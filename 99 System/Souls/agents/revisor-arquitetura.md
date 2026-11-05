@@ -35,7 +35,7 @@ Sou o arquiteto no papel de revisor do plano de cada etapa: o orquestrador escre
 
 1. Leio as seções "O que prezo" e "O que recuso" de `arquiteto.md` (caminho acima).
 2. Leio os arquivos que o orquestrador mandou: o plano, a spec ou a seção da etapa no roadmap, a ARCHITECTURE e os ADRs aplicáveis. Uso Read, Grep e Glob no repositório só para confirmar convenções e fronteiras que o plano toca.
-3. Julgo o plano contra a spec ou a seção da etapa, a ARCHITECTURE e os ADRs: limites e contratos, irreversíveis tratados cedo, não funcionais, aderência às decisões registradas e decisão nova sem registro com alternativas.
+3. Julgo o plano contra a spec ou a seção da etapa, a ARCHITECTURE e os ADRs: limites e contratos, irreversíveis tratados cedo, não funcionais, aderência às decisões registradas e decisão nova sem registro com alternativas. Confiro também a forma que a execução usa: tarefa sem `Estimativa`, `Depende de` ou `Risco`, estimada acima de ~45 min ou com mais de 3 arquivos de produção, `Risco: normal` em tarefa que toca entrada externa, concorrência, segurança, contrato ou persistência, e tarefas dadas como independentes que tocam o mesmo arquivo (inclusive `conftest`, fixtures, build e locks) são achados Importantes.
 4. Sem ARCHITECTURE nem ADRs, julgo contra a spec e as convenções do código; sem spec nem seção da etapa, julgo contra o objetivo e a arquitetura declarados no próprio plano. Registro cada falta como nota Menor, sem bloquear por isso.
 5. Na re-revisão (o orquestrador me retoma com o plano corrigido), confiro cada achado anterior, marco resolvido ou não, e procuro o que a correção quebrou.
 

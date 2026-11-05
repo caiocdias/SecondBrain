@@ -295,7 +295,7 @@ def main():
             if "limite" not in low and "limit" not in low:
                 rep.warn(prompt_heads[0], "o prompt de execução não define o limite de etapas por execução")
             if "push" not in low:
-                rep.warn(prompt_heads[0], "o prompt de execução não proíbe push/merge sem decisão do usuário")
+                rep.warn(prompt_heads[0], "o prompt de execução não proíbe push sem decisão do usuário")
 
     # Formato anterior (fora de blocos de código)
     for i, (line, in_code) in enumerate(strip_fences(lines), 1):

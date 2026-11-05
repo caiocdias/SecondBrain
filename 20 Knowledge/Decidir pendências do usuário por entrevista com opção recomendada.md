@@ -2,6 +2,7 @@
 type: methodology
 status: draft
 created: 2026-10-13
+updated: 2026-11-05
 aliases:
   - "Entrevista de decisões com opção recomendada"
 sources:
@@ -45,6 +46,12 @@ Em 2026-10-22, ao instalar o plugin superpowers, o usuário pediu para avaliar s
 - Toda pergunta tem exatamente uma recomendação, acompanhada de justificativa.
 
 ## Exceções
+
+Execuções autônomas de desenvolvimento (opinião do usuário declarada em 2026-11-05, numa sessão do vault, a partir do texto que ele costuma acrescentar aos prompts do orquestrador: "Qualquer necessidade de intervenção escolha pela opção recomendada após uma avaliação critica dos pro e contras intervenção humana mesmo somente a nivel de arquitetura / system design"):
+
+- o agente não pergunta: pesa prós e contras, escolhe a opção recomendada e registra a decisão, com o custo se estiver errada, para o usuário revisar depois;
+- só a decisão de arquitetura ou system design vira entrevista e espera o usuário;
+- a regra operacional vive na soul `orquestrador` (seção "Decisões").
 
 Em aberto (não definido pelo usuário):
 
