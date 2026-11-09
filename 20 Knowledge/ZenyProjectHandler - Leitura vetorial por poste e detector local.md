@@ -115,6 +115,11 @@ Interpretação do curador, a partir do "Por que registrar" da captura; ainda n�
 
 Condições: o PDF precisa preservar o vetor (não ser um raster escaneado), e o padrão só se justifica quando o OCR sobre raster já foi medido e se mostrou insuficiente.
 
+## Relações
+
+- [[ZenyProjectHandler - Execução acelerada do roadmap de leitura vetorial]]: decisões de processo que executam este roadmap. Inclui a D17, que mantém a leitura vetorial desligada por padrão na versão 0.6.0.
+
 ## Proveniência
 
 - 2026-10-30 — [[2026-10-30 - ZenyProjectHandler - decisões de leitura vetorial por poste e detector local - 04db94e3]] (capture_id: 04db94e3-25f0-4ad7-b89f-fda291887e4f): decisões de arquitetura, problema, fases, alternativas descartadas e incertezas, conferidos pelo escriba contra o design e os ADRs 0016 e 0017; seção "Padrão possivelmente reutilizável" é interpretação do curador.
+- 2026-11-09 — [[2026-11-08 - ZenyProjectHandler - decisões D16 a D20 janela de release 0.6.0 - 731fe7d4]] (capture_id: 731fe7d4-6520-486e-8b7c-59f403040bac): apenas a relação com a nota de processo e a menção à D17.
