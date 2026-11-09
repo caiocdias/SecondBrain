@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Eventos e jobs - 4e9ffb74]]"
+  - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
 ---
 # ZenyHotelManager - Eventos e jobs
 
@@ -31,6 +32,30 @@ Texto literal do `CLAUDE.md` do repositório, linhas 564–577, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto.
+
+### Padrão de integração e jobs previstos (revisão dos roadmaps, 2026-11-06)
+
+Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]. Detalhes da FNRH em [[ZenyHotelManager - Módulo fnrh]].
+
+**Decisão do arquiteto (R8):** o padrão de integração passa a ser descrito pelo que o M5 E07 provou, e **não existe mecanismo genérico de falha**. Os roadmaps supunham um; a hipótese M7 H2 foi conferida como falsa no código: o M5 usa `NotificationsApi.notify` direto, `GET /fnrh/status` e `MeterBinder`, sem `HealthIndicator`. A extração para `shared` fica para a M7 E01 decidir, com a segunda integração à frente.
+
+Citação literal de `docs/ARCHITECTURE.md` §12 (árvore de trabalho, sem commit na data da captura):
+
+> Regras que a FNRH (M5 E07) provou e que valem para toda integração:
+>
+> - **Resultado incerto:** timeout de leitura numa escrita não diz se o provedor gravou. Nunca se repete às cegas: reenvio só com a mesma referência idempotente do provedor ou depois de conciliar pela consulta. A conciliação ambígua falha fechado.
+> - **Registro de integração** em tabela *append-only* sem texto livre do provedor, porque ela não admite expurgo; a mensagem saneada vai só para o log e para a exceção, sem causa encadeada.
+> - **Credencial** cifrada, nunca na trilha (nem o usuário), nunca devolvida na API e removível por uma ação com trilha. O administrador escolhe o ambiente, as URLs ficam em propriedade, e trocar de ambiente pede a credencial de novo.
+> - **Falha** alerta por chamada direta a `notifications`, com o tipo `notifications.integration-failure` e sem dado pessoal. A readiness nunca depende de provedor externo.
+
+Lista de jobs: a tabela da ARCHITECTURE §13 troca "Retenção LGPD (anonimização e expurgo)" por "Expurgo dos dados sensíveis da FNRH (M8 E16)" e "Anonimização de perfis por prazo (M10 E13)", ambos semanais. Nenhum deles existe ainda.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Eventos e jobs - 4e9ffb74]] (capture_id: 4e9ffb74-b604-4a12-835d-89cb104e68f7): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 564–577, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): padrão de integração (R8, ARCHITECTURE §12) e jobs previstos (§13), em "Atualizações por capturas".

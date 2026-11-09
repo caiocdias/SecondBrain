@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Segurança, autenticação e autorização - 822ef2ab]]"
+  - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
 ---
 # ZenyHotelManager - Segurança, autenticação e autorização
 
@@ -49,6 +50,24 @@ Texto literal do `CLAUDE.md` do repositório, linhas 155–185, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto.
+
+### Permissões do `fnrh` e regras novas (M5 E07, 2026-11-05)
+
+Origem: [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]. Módulo em [[ZenyHotelManager - Módulo fnrh]].
+
+- **Permissões novas do `fnrh`:**
+  - `fnrh.settings.manage`: só o **Administrador**, **sem modelo de role** (o Administrador recebe todas as permissões e não pode constar em nenhum `RoleTemplate`). Cobre a configuração, o CPF solicitante por usuário e o `refresh` dos domínios.
+  - `fnrh.domains.read` e `fnrh.submissions.read`: Gerente e Recepcionista.
+  - Nenhuma é sensível. `fnrh.submissions.manage` virá na E08.
+- **Regra nova: credencial de integração não vai em claro para a trilha.** O `username` da configuração da FNRH foi tirado do retrato de auditoria (commit `f8d7ea9`); a trilha da configuração não guarda senha, usuário nem CPF em claro. Vale para as próximas integrações (M7, M8).
+- **Convenção, protegida por teste: a API não expõe `DELETE`.** O build barrou o `DELETE /fnrh/requesters/{userId}` do plano; a saída foi a desativação (`POST …/deactivate`), que apaga o dado sensível e mantém a linha. Itens que "saem" são desativados, não apagados.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Segurança, autenticação e autorização - 822ef2ab]] (capture_id: 822ef2ab-cdc0-4a81-8c89-77c9af576a1f): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 155–185, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): permissões do `fnrh`, credencial fora da trilha e convenção sem `DELETE`, em "Atualizações por capturas".

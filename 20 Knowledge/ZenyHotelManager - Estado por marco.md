@@ -12,6 +12,8 @@ sources:
   - "[[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]]"
   - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
   - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
+  - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
+  - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
 ---
 # ZenyHotelManager - Estado por marco
 
@@ -90,6 +92,133 @@ Decisões do lote E14, a confirmar. O usuário delegou a escolha em 2026-11-04. 
 
 *Nota do curador:* o hash do commit de fechamento da E14 não consta na captura. O que a E13 e a E14 mudaram no código está nas seções "Atualizações por capturas" de [[ZenyHotelManager - Ambiente, banco, chaves e build]] e [[ZenyHotelManager - Docker, observabilidade e CI]].
 
+### M5 E07 (2026-11-05)
+
+Origem: [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]], que substitui a linha do M5 da captura da E14.
+
+- M5 em andamento: **E01 a E07, E13 e E14 concluídas**.
+- A E07 está na branch `roadmap/m5-recepcao-fnrh` (commit `bd75afc` de fechamento; ponta de código `d5614b6`) e ainda **não** está em `origin/main`. O usuário pediu a `main` local pronta para `git push origin main`; o push é dele.
+- **Próximas elegíveis: E08** (depende de E01, E02 e E07, todas concluídas) **e E10**. A E09 segue `#bloqueada` (depende da E08 e da credencial, Q-12).
+- **Revisão humana pendente: E13 e E07.** O lote parou na da E07.
+
+Fatos:
+
+- `./gradlew build` em `d5614b6`: BUILD SUCCESSFUL in 6m 37s, **1712 testes, 0 falhas, 0 erros**.
+- `.github/scripts/check-api-breaking.sh 360592f`: "Nenhuma mudança incompatível (nível ERR) em /api/v1".
+- Scanner (cópia de `60080b7`, sem mudança de dependência depois): 415 + 74 pacotes, **0 Critical, 0 High**, 2 Medium e 3 Low, os mesmos da E14.
+- Revisão de arquitetura do plano (`revisor-arquitetura`): **aprovado com notas, em 2 rodadas**. A inicial bloqueou com 1 Crítico e 8 Importantes (tipos em camadas proibidas, fluxo de registro indefinido, resultado incerto, texto livre em tabela *append-only*, entre outros); a rodada 1 abriu o Importante da autoinvocação no refresh.
+- Revisão final (`revisor-seguranca`) sobre `360592f..60080b7`: **"With fixes"**, sem Crítico. I1 (troca do CPF solicitante sem rastro na trilha; corrigido com `@Version` e a versão no retrato) e I2 (`findReservationByCode` falhava aberto; agora falha fechado). Minors corrigidos na mesma onda: controle e formatação Unicode no saneador e nos rótulos, CHECK no `remote_id`, regex da senha, casos 502/503 no `DomainErrorsTest`. **Re-revisão restrita da onda: "all findings addressed", "Ready to merge? Yes"**; ela apontou dois Minors novos (regex da senha inválida em ECMA-262; U+2028/U+2029), corrigidos em `d5614b6`. Revisões por tarefa: todas "Approved".
+- Levantamento da API: `docs/fnrh/api-fnrh-v2.4.md`, a partir do PDF oficial de 60 páginas, **SHA-256 `476849fdb56642cb2d98abd24bb817a18dd583f1ff43081386f382e470cbf235`**, baixado pelo link `@@display-file` do portal. A H6 se confirmou: a documentação basta para os stubs.
+- Integridade dos testes: `check_test_integrity.py --base 360592f` aponta `[DEV_TESTE_DO_TESTADOR] 24399f9 SerproFnrhGatewayRound3Test.kt`: na correção 3 da Task 4 o desenvolvedor reescreveu um arquivo do testador e apagou 5 testes; o testador os restaurou idênticos em `45aa6ef` (`SerproFnrhGatewayRequestBuildTest.kt`), e as revisões da Task 4 e a final conferiram que nenhuma asserção ficou mais fraca. O apontamento se repete enquanto o commit estiver no histórico.
+- Commits da etapa (branch `roadmap/m5-recepcao-fnrh`, a partir de `360592f`): início, levantamento, plano e correções da revisão de arquitetura `3558601`, `0185647`, `fa9091b`, `08903c4`; Task 1 `4405108`, `089b175`; Task 2 `fe551a2`, `da106b5`, `f8d7ea9`, `6f58f82`; Task 3 `52ae0b1`, `60438a4`, `0316330`, `b6b6d61`; Task 4 `68911e6`, `55f14ab`, `a7e685d`, `937e7de`, `2e4aaf5`, `0a011c8`, `24399f9`, `45aa6ef`, `514c5cb`; Task 5 `2bf1b90`, `47c0797`; Task 6 `c3f6b1c`, `4928795`, `40dacfc`, `e0724b3`, `531193e`; Task 7 `635b6c1`, `60080b7`; onda da revisão final `e8b7303`, `55e5a75`, `0584d47`, `d5614b6`; fechamento `bd75afc`.
+
+Decisões do lote E07, a confirmar. O usuário delegou a escolha em 2026-11-04, pedindo a opção recomendada depois de uma avaliação crítica dos prós e contras. As decisões (a) a (j) abaixo foram tomadas pela opção recomendada, em nome dele, pelo orquestrador (2026-11-04 e 05). **Falta a confirmação dele.**
+
+- (a) Fluxo de registro: reserva na criação, sem dado pessoal; pessoa e hóspede no check-in; check-out por `PATCH`; cancelamento só em `CRIADA`; no-show no M6. A favor: o link de pré-check-in chega cedo (RF-FNRH-04), o cancelamento chega ao Serpro e o fluxo segue os eventos de reserva da E08. Contra: mais chamadas e a reserva fica sincronizada desde a criação. Descartada: registro só no check-in.
+- (b) `cpf_solicitante` só nas operações em que a API o exige.
+- (c) URL base por ambiente escolhido na configuração, URLs em propriedade, senha de novo ao trocar de ambiente.
+- (d) Municípios IBGE: lista oficial versionada no repositório, com fonte, data e SHA-256. Risco aceito: município criado depois do download é recusado até atualizar.
+- (e) Gênero `OUTRO`: a validação acusa a falta da descrição, sem falsear o dado; recomendação de acrescentar a descrição ao `guests`. Raça e gênero não coletados dão `REQUIRED`.
+- (f) Menor só com RG: o hotel precisa colher o CPF do menor.
+- (g) Registro de integração sem texto livre.
+- (h) CPF por usuário sem `DELETE`: desativação que apaga o CPF e mantém a linha.
+- (i) **Limpar a credencial do Serpro:** hoje não há como apagá-la; recomendação: ação explícita de limpar, com trilha, **antes do M8**. Em aberto.
+- (j) Correções extras depois da onda única da revisão final: dois despachos mínimos (controle C1 no saneador; `pattern` da senha válido em ECMA-262, mais U+2028 e U+2029), para deixar a `main` pronta para push com o build verde e o contrato válido para os geradores de SDK. Descartada: integrar com um teste vermelho como resíduo.
+
+*Nota do curador:* a captura da revisão dos roadmaps (abaixo) substitui "Próximas elegíveis" e a localização da E07 e resolve (e) e (i), que o usuário decidiu em R5 e R6. O texto técnico do módulo está em [[ZenyHotelManager - Módulo fnrh]].
+
+### Revisão de arquitetura dos roadmaps (2026-11-06)
+
+Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]], que substitui a linha do M5 e a linha do Git. Publicada pela sessão `claude --agent arquiteto`: os roadmaps M5 a M10 foram revistos pela lente do arquiteto e alinhados ao modelo atual de execução. **Nenhum código mudou e as alterações não tinham commit na data da captura.** Autoria: **decisão do usuário** é o que a spec marca como `[usuário]`, decidido na entrevista daquela sessão; **decisão do arquiteto** é o que ela marca como `[arquiteto]` e diz ser revisável. A autoria segue a spec; a captura não presenciou a entrevista.
+
+- **M5, 16 etapas (novas E15 e E16).** E01 a E07, E13 e E14 concluídas. Próximas elegíveis, na ordem do índice: **E15, depois E08, E16 e E10**. A E08 depende da E15, por isso vem depois dela. A E09 segue `#bloqueada` (Q-12) e passa a depender de E08 e E16. O gate E12 passa a depender também da E16. A E08 passa a ter revisão humana, por fixar o padrão de envio que M7 e M8 repetem.
+- **M6, 14 etapas (novas E13 e E14), começando pelo fechamento:** E10 (motor) e E11 (etapas financeiras e operacionais) vêm antes da governança, e a E11 deixa de depender de E02 e E09. A E02 passa a depender da E11. O snapshot e os PDFs saem para a E13, e o no-show na FNRH para a E14. O gate E12 passa a depender de E06, E13 e E14.
+- **M8, 18 etapas (novas E14 a E18):** quatro trilhas (restaurante E01 a E06, distribuição E07 a E09, prontidão para operação real E10 e E14 a E18, implantação E11), mais o gate E13. A E11 passa a depender de E10, E14, E15 e E18. O gate E13 passa a depender de E09, E11, E12, E16 e E17 e exige a homologação real da FNRH (M5 E09). A E10 passa a ter revisão humana.
+- **M9 e M10** trazem a restrição de sistema em produção: migração só aditiva ou em duas fases, backup e procedimento de implantação antes de cada versão.
+- **Fim do lote (decisão do usuário, 2026-11-06, que substitui a regra de 2026-10-22):** a execução continua na branch `roadmap/<slug>`; no fim do lote, com o gate verde, o orquestrador faz o **merge local na `main`** e deixa pronto o `git push origin main`. **Push e deploy são sempre do usuário.** Fora do roadmap, commit só a pedido.
+- **M0 a M4 são registro histórico (decisão do usuário):** concluídos, não se executam e continuam acusando erro de formato no verificador.
+- **Quem faz o quê:** `claude --agent arquiteto` desenha e revê (spec, ARCHITECTURE, roadmaps) e não escreve código nem plano; `claude --agent orquestrador` escreve o plano de cada etapa, submete-o ao `revisor-arquitetura` e executa.
+- **Protocolo dos roadmaps** alinhado ao template de 2026-11-05: ondas paralelas, testador por risco e decisões pela opção recomendada, salvo as de arquitetura; etapa `#bloqueada` não para o lote.
+- Localização do código (fato, conferido com `git`): `HEAD` da `main` local em `ca9f9e2`, com E14 e E07; a referência local `origin/main` está em `15bbcdb` (sem `fetch` nesta sessão); a branch `roadmap/m5-recepcao-fnrh` não existe mais.
+- A homologação da FNRH (M5 E09) continua fora do gate do M5 e passa a ser cobrada pelo gate de inauguração (M8 E13). A regra 2 de `docs/roadmaps/README.md` continua: sincronizar cada roadmap com o código antes do primeiro lote do marco.
+- Referência da revisão: `docs/superpowers/specs/2026-11-06-revisao-arquitetura-roadmaps-design.md`.
+
+Situação das perguntas:
+
+- **Resolvidas pelo usuário:** E07 (e), descrição de gênero: etapa própria antes do envio, M5 E15 (R5). E07 (i), limpar a credencial do Serpro: antes de existir credencial real, M5 E16, pré-requisito da E09 (R6); antes a recomendação era "antes do M8".
+- **Continuam sem confirmação do usuário:** as decisões dos lotes M5 E04 a E06, E13, E14 e E07 (as demais, (a) a (d), (f), (g), (h) e (j)), tomadas pela opção recomendada, e a **revisão humana de E13 e E07**. O gate M8 E13 passa a exigir que tenham sido revistas e concluídas.
+- **Nova, em aberto:** a oferta de dividir o M8 em dois arquivos. Ele ficou com 18 etapas, acima da referência de cerca de 12 da skill; as etapas ficam em blocos no índice e a divisão foi oferecida ao usuário, não aplicada.
+- **Revisáveis:** as decisões do arquiteto (R7 a R13 e R16) não passaram pela entrevista.
+- **Q-07 (prazos de retenção):** segue no padrão da SPEC (30 dias e 5 anos) até o usuário confirmar; a revisão humana da M8 E16 cobre o prazo.
+- **Fornecedores e hospedagem** (Q-05, Q-06, Q-02, Q-03, Q-13) seguem como decisões do usuário, e as etapas afetadas, `#bloqueada`.
+- O prazo do risco do `opentelemetry-api` 1.62.0 passa a ter etapa dona, a M8 E17.
+
+Decisões da revisão, texto literal de `docs/superpowers/specs/2026-11-06-revisao-arquitetura-roadmaps-design.md`, seção "Decisões", reagrupado por autoria:
+
+**Decisões do usuário**
+
+| # | Decisão | Alternativas descartadas |
+|---|---|---|
+| R1 | Manter os IDs e revisar o conteúdo: protocolo novo, hipóteses conferidas no código, dependências reordenadas e etapas novas com ID novo. | Só o protocolo (não aplica a lente); reescrever do zero com IDs novos (quebra as referências cruzadas e perde as armadilhas anotadas). |
+| R2 | M0 a M4 ficam como registro histórico: concluídos, não se executam e continuam acusando erro de formato no verificador. | Migrar 1,5 MB de documentos sem efeito em execução futura. |
+| R3 | No fim do lote, merge local na `main` com gate verde; o push continua com o usuário. `CLAUDE.md` e `docs/roadmaps/README.md` alinhados. | Reservar o merge ao usuário, o que exigiria instrução própria em cada prompt. |
+| R4 | Expurgo dos dados sensíveis da FNRH (RN-19, Q-07) antes da inauguração: M8 E16, exigido no gate; a SPEC §9 passa a dizer isso. Anonimização de perfis e retenção da trilha seguem no M10 E13. | Manter tudo na Fase 4, com o hotel retendo dado sensível além do prazo por todo o intervalo M8–M10; expurgo manual, para o qual não há caminho hoje. |
+| R5 | Descrição de gênero do hóspede em etapa própria antes do envio: M5 E15, dependência da E08. Resolve a decisão E07 (e). | Embutir na E08, já a mais carregada do marco; aceitar a limitação, o que força falsear o dado para cumprir a obrigação de registro. |
+| R6 | Limpar credencial de integração antes de existir credencial real: M5 E16, pré-requisito da homologação E09; a regra vale para M7 e M8 desde a primeira linha. Resolve a decisão E07 (i). | Deixar para a prontidão do M8, com as credenciais reais de homologação entrando sem caminho de remoção. |
+| R14 | A comanda paga abre uma conta `WALK_IN` no `billing` (ARCHITECTURE D18, M8 E04). | Livro financeiro próprio no `pos`, que duplica taxa e conferência de caixa e cria duas fontes de receita. |
+| R15 | Prometheus e Alertmanager no compose entregam os alertas (ARCHITECTURE D19, M8 E18). | Monitor externo gerenciado; decidir só com a Q-06, com alertas sem destinatário até lá. |
+
+**Decisões do arquiteto (revisáveis)**
+
+| # | Decisão | Alternativas descartadas |
+|---|---|---|
+| R7 | M6 começa pelo fechamento: E10 e E11 antes da governança, com a E11 sem depender de E02 nem de E09. O snapshot e os PDFs saem para a E13, e o no-show na FNRH para a E14. | Manter a ordem original, com o único caminho que grava dinheiro imutável (RN-03) e faz a data andar no fim do marco; manter a E11 única, com três objetivos independentes. |
+| R8 | Padrão de integração descrito pelo que o M5 E07 provou: resultado incerto, log sem texto livre, credencial fora da trilha, ambiente em vez de URL livre e status e métricas sem `HealthIndicator`. Falha alerta por chamada direta a `notifications`; o "mecanismo genérico de falha" que os roadmaps supunham não existe. ARCHITECTURE §12 e §16 corrigidas. | Criar o mecanismo genérico antes da segunda integração, sem evidência de que seja necessário. A extração para `shared` fica para a M7 E01 decidir, com a segunda integração à frente. |
+| R9 | Migrações fora da `api` saem da M8 E11, bloqueada pela Q-06, para a M8 E14: a dívida não depende de nuvem ou hotel. | Deixar a dívida de segurança presa a uma decisão de hospedagem que não a afeta. |
+| R10 | Pendências "antes da operação real" viram etapas com critério: re-cifragem (M8 E15) e cadeia de dependências (M8 E17), ambas exigidas no gate. | Mantê-las como notas: a re-cifragem constava como "decidir se entra", e o prazo do `opentelemetry-api` não tinha etapa dona. |
+| R11 | O gate de inauguração (M8 E13) passa a exigir a homologação real da FNRH (M5 E09). Ela ficou fora do gate do M5 por exceção, e nenhum gate posterior a cobrava. | Só o checklist de inauguração, que não é critério de aceite. |
+| R12 | M9 e M10 ganham a restrição de sistema em produção: migração só aditiva ou em duas fases, backup e procedimento de implantação antes de cada versão. | Tratar M9 e M10 como desenvolvimento sem dados, embora rodem depois da inauguração. |
+| R13 | Decisões novas ficam nesta spec, na ARCHITECTURE e nos roadmaps. O projeto não tem `docs/adr/`; a convenção é a tabela de decisões da ARCHITECTURE §2 e os "Decisões" dos roadmaps. | Criar `docs/adr/` paralelo às duas fontes. |
+| R16 | O expurgo da M8 E16 fica retido por submissão `FAILED` ou `INVALID` só até um teto configurável; passado o teto, o dado sai e o caso fica nas pendências da FNRH. | Reter sem limite, o que descumpre a RN-19 com um `INVALID` esquecido; não reter, o que pode perder dado de um reenvio ainda possível. |
+
+Hipóteses conferidas no código, texto literal da spec, seção "Hipóteses conferidas no código (`ca9f9e2`)"; conferência feita pelo arquiteto:
+
+| Hipótese | Resultado |
+|---|---|
+| M6 H2: base offline e execução de checklist | Confirmada, com outra assinatura: `ChecklistsApi.startExecution` e `completeExecution`. |
+| M6 H3: comandos de status em `rooms` | Parcial: `markClean`, `markInspected`, `rejectInspection`, `markDirty`, `setServiceFlag` e OOO existem na `RoomsApi`; a discrepância (RF-UH-08) não está na API pública. |
+| M6 H4: consultas por data e `markNoShow` | Falsa: a `ReservationsApi` não tem no-show nem listas por data (só endpoints); `releaseUnused` e `blocksDueForRelease` existem. |
+| M6 H5: idempotência em `billing` | Confirmada por `NewPosting.sourceReference` (M5 E04), com chave definida para o fechamento usar. Não há conceito de data fechada: `post` grava na data corrente. |
+| M6 H6: aresta `endofday` → `files` "já listada" | Falsa: a tabela §3.1 não a lista. Os PDFs ficam com `reporting`, que tem a aresta. |
+| M6: `fnrh.report_pending_submissions` "já existe" | Falsa: o nome previsto na M5 E08 é `fnrh.report_submissions`, ainda a criar. |
+| M7 H2: "evento genérico de falha" e indicador de saúde no actuator | Falsa: o M5 usa `NotificationsApi.notify` direto, `GET /fnrh/status` e `MeterBinder`, sem `HealthIndicator`. |
+| M8: serviço `backup` "reservado no compose" | Parcial: só um comentário em `docker/compose.yaml`; o serviço é a criar. |
+| M8: `opentelemetry-api` | Confirmado na 1.62.0 no `gradle.lockfile`, com Spring Boot 4.1.2; segue o risco aceito com prazo (M5 E14 a). |
+| M10 H6: dono dos dados sensíveis da FNRH | Resolvida: `guests` guarda (`sensitive_data`); `fnrh` não guarda, por critério da M5 E08. |
+
+Etapas novas, texto literal da spec, seção "Etapas novas"; nenhuma etapa foi cancelada ou renumerada:
+
+| Etapa | Objetivo | Depende de |
+|---|---|---|
+| M5 E15 | Descrição de gênero no perfil e nos dados da FNRH | E07 |
+| M5 E16 | Limpar a credencial do Serpro | E07 |
+| M6 E13 | Snapshot e arquivo do fechamento | E09, E11 |
+| M6 E14 | No-show na FNRH | E11 |
+| M8 E14 | Migrações fora da `api` | — |
+| M8 E15 | Re-cifragem de todos os valores cifrados | — |
+| M8 E16 | Expurgo dos dados sensíveis da FNRH | — |
+| M8 E17 | Cadeia de dependências pronta para produção | — |
+| M8 E18 | Coleta e entrega de alertas | E10 |
+
+Limites da revisão, segundo a captura:
+
+- **Revisão independente incompleta.** O `revisor-arquitetura` devolveu **"bloqueado": 0 Críticos, 10 Importantes e 9 Menores**. Os achados foram corrigidos (dois viraram as decisões do usuário R14 e R15; os demais, correção de dependência ou de critério), mas **ele não releu o resultado**. A lista dos 19 achados não está nas fontes lidas pela captura.
+- M7 E03, E04, E05, E07 e E09 a E12 ficaram fora do pedido feito ao revisor.
+- Hipóteses que dependem de código ainda inexistente (M5 a M8) seguem como hipóteses. Etapas novas, D18, D19 e as regras de expurgo são desenho, não estado do sistema.
+- Resíduos observados na árvore de trabalho em 2026-11-06, não corrigidos pela sessão (interpretação da captura, a conferir antes do commit): `docs/roadmaps/roadmap-m5-recepcao-fnrh.md` ainda aponta o expurgo para o M10 nas linhas 21, 57 e 77, o que contradiz a R4; `docs/roadmaps/roadmap-m8-restaurante-distribuicao.md`, linha 29, ainda diz "com o serviço `backup` reservado"; o mesmo roadmap, nas notas da E11, tem dois itens de lista colados numa só linha.
+
+*Nota do curador (conferência por `git` no repositório em 2026-11-09, sem captura correspondente):* a `main` local continua em `ca9f9e2`, `origin/main` em `15bbcdb` (referência local) e as alterações da revisão seguem sem commit na árvore da `main`. A linha "a branch não existe mais" valia na data da captura: a branch `roadmap/m5-recepcao-fnrh` foi recriada depois, em worktree próprio (`.claude/worktrees/roadmap-m5-recepcao-fnrh`), com 19 commits à frente da `main`, ponta `e718190` (2026-11-06 21:07), "Registra o ponto de retomada da E15 (execução interrompida a pedido do usuário)". O roadmap dessa branch marca a E15 `#em-andamento`.
+
 ---
 
 ## Proveniência
@@ -101,3 +230,5 @@ Decisões do lote E14, a confirmar. O usuário delegou a escolha em 2026-11-04. 
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): estado do M5 depois da integração de E04 a E06 à `main` e do push.
 - 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): estado do M5 após a E13, fatos e decisões do lote E13 (a confirmar); a linha da E14 como primeira da fila foi substituída pela captura da E14.
 - 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): estado do M5 após a E14 (ainda fora de `origin/main`), fatos e decisões do lote E14 (a confirmar).
+- 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): estado do M5 após a E07, fatos e decisões do lote E07 (a confirmar).
+- 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): revisão dos roadmaps M5 a M10, decisões R1 a R16, hipóteses, etapas novas e limites; nota do curador com a conferência por `git`.

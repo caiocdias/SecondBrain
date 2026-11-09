@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Convenções de API - 3725663b]]"
+  - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
 ---
 # ZenyHotelManager - Convenções de API
 
@@ -29,6 +30,23 @@ Texto literal do `CLAUDE.md` do repositório, linhas 121–129, 154, no commit `
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto.
+
+### Integrações de saída e contrato (M5 E07, 2026-11-05)
+
+Origem: [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]].
+
+- **Kernel (`shared`):** `ErrorKind.BAD_GATEWAY` (502) e `ErrorKind.SERVICE_UNAVAILABLE` (503), com `BadGatewayException` e `ServiceUnavailableException`. Servem às integrações de saída (a FNRH os usa em `FNRH_REJECTED` e `FNRH_UNAVAILABLE`); o `DomainErrorsTest` cobre os casos 502/503.
+- **`pattern` global do `Cpf` no contrato:** passou a **aceitar pontuação** (`123.456.789-09` além de só dígitos). Mudança de contrato sem `ERR` no oasdiff.
+- **`pattern` do contrato precisa ser válido em ECMA-262** (sem `(?s)` e sem recursos que só o Java aceita), porque os SDKs dos clientes são gerados do `api/openapi.yaml`. A regex da senha da FNRH foi corrigida por isso (commit `d5614b6`); uma regex inválida em ECMAScript quebra os geradores.
+- **Códigos de campo:** `FnrhFieldCodes` traz `NOT_IN_DOMAIN` e `INCONSISTENT`, além dos `FieldViolationCodes` do kernel (`REQUIRED`, `INVALID_VALUE`, `INVALID_FORMAT`), que valem quando um deles serve. Em erro de campo, nunca se devolve o valor.
+- `PUT` de configuração com `If-Match`/`ETag` (como o `HotelController`): `428` sem o header, `412` com ETag velho.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Convenções de API - 3725663b]] (capture_id: 3725663b-4521-4cf8-b38d-d48c710cbd48): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 121–129, 154, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): erros 502/503, `pattern` do `Cpf`, `pattern` em ECMA-262, códigos de campo e `PUT` com `If-Match`, em "Atualizações por capturas".

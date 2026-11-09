@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Arquitetura e estrutura de módulos - a0fc3031]]"
+  - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
 ---
 # ZenyHotelManager - Arquitetura e estrutura de módulos
 
@@ -68,6 +69,26 @@ com/zeny/hotel/<módulo>/
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto.
+
+### Decisões D18 e D19 e regra por camadas (revisão dos roadmaps, 2026-11-06)
+
+Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]. Citações de `docs/ARCHITECTURE.md` na árvore de trabalho, sem commit na data da captura.
+
+Linhas novas da tabela de decisões (§2):
+
+> | D18 | Venda do PDV | A comanda paga no ponto de venda abre uma **conta `WALK_IN`** no `billing`, com lançamentos e pagamentos existentes (usuário, 2026-11-06) | O dinheiro entra no turno de caixa, na taxa de serviço e em `billing.report_postings` sem caminho novo; o A&B do snapshot tem uma só fonte | Livro financeiro próprio no `pos` (duplica taxa e conferência de caixa e cria duas fontes de receita) |
+
+> | D19 | Alertas | **Prometheus e Alertmanager** no compose, sem porta pública, com destino de entrega configurável (usuário, 2026-11-06) | As regras já existem, e o caminho é o mesmo em nuvem ou no hotel; o monitor externo do host fica no checklist de inauguração | Monitor externo gerenciado (fornecedor novo e, no hotel, endpoint exposto); decidir só com a Q-06 (alertas sem destinatário até lá) |
+
+- D18 e D19 são **decisões do usuário** (R14 e R15). Ambas ainda são desenho: a D18 entra na M8 E04 e a D19, na M8 E18.
+- A regra por camadas da §3.1 ganhou uma frase, sem decisão R própria na spec. Citação literal: "as arestas de mesma camada já na tabela (como `billing` → `payments`, `reservations` → `rates` e `endofday` → `reporting`) são exceções registradas, e uma nova exige decisão." Complementa o item "Dependências entre módulos seguem a regra por camadas" acima.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Arquitetura e estrutura de módulos - a0fc3031]] (capture_id: a0fc3031-9923-4dfc-bfc7-44c8c88a6666): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 66–81, 593–625, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): decisões D18 e D19 e frase nova da regra por camadas, em "Atualizações por capturas".

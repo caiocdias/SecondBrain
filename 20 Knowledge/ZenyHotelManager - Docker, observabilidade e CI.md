@@ -8,6 +8,7 @@ sources:
   - "[[2026-10-22 - ZenyHotelManager - Docker, observabilidade e CI - ada44296]]"
   - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
   - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
+  - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
 ---
 # ZenyHotelManager - Docker, observabilidade e CI
 
@@ -68,6 +69,20 @@ Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f
 - A ARCHITECTURE §17 cita a conferência dos lockfiles; o README e o comentário do `build.gradle.kts` também foram atualizados.
 - **O primeiro run no GitHub ainda não existe** (depende do push, que é do usuário).
 
+### Pendências do M8 (revisão dos roadmaps, 2026-11-06)
+
+Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]. Todas as etapas abaixo estão `#pendente`. Esta nota descreve o estado atual do código, que continua valendo até cada etapa ser executada; muda o dono e o critério das pendências.
+
+| Etapa | Entrega | Parte afetada | Efeito | Autoria |
+|---|---|---|---|---|
+| M8 E14 | Migrações num container de uso único; `api` sem `ZENY_DB_MIGRATION_*` e sem Flyway no `prod`; o dono dos schemas deixa de ser o superusuário do container onde o modelo permitir | Lista de variáveis da `api` | Substitui a referência à E11 pela E14 ([[ZenyHotelManager - Ambiente, banco, chaves e build]]). A dívida não depende da Q-06. | Arquiteto (R9); a dívida em si é decisão do usuário de 2026-10-14 |
+| M8 E17 | `opentelemetry-api` ≥ 1.67.0 no `productionRuntimeClasspath`, pelo Boot ou por restrição; 0 Critical e 0 High no scanner, salvo risco aceito; checksums e `osv-scanner` na CI ligados ou recusados com registro | Passos da CI | Complementa: dá etapa dona às decisões E14 (a), E13 (c) e (d), que não tinham uma | Arquiteto (R10) |
+| M8 E18 | Serviços `prometheus` e `alertmanager` no compose, sem porta pública; destino por variável, obrigatório no profile de produção; alerta entregue a um receptor de teste | "Métricas", regras em `docker/prometheus/alerts.yaml` | Complementa: hoje o compose não sobe coletor, e as regras não têm quem as avalie | Usuário (R15, D19) |
+
+- Serviço `backup` (M8 E10): a criar, pois hoje é só um comentário em `docker/compose.yaml`. A E10 ganhou critério de restauração utilizável (valor cifrado lido, anexos baixados do espelho, local das chaves fora do servidor) e revisão humana.
+- M8 E11: `idle_in_transaction_session_timeout` definido e logs de acesso sem query string, com teste; um alerta de teste chega ao destino real.
+- "Health" na ARCHITECTURE §16: liveness e readiness, com a saúde de cada integração por endpoint de status e métricas, sem `HealthIndicator`. Coerente com o que esta nota já descreve do actuator.
+
 ---
 
 ## Proveniência
@@ -75,3 +90,4 @@ Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Docker, observabilidade e CI - ada44296]] (capture_id: ada44296-529e-4b1f-9386-ab1e5da05933): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 540–563, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): lockfiles no `.dockerignore` e no `Dockerfile`, em "Atualizações por capturas".
 - 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): passo "Lockfiles em dia com o catálogo" da CI, em "Atualizações por capturas".
+- 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): donos e critérios das pendências do M8 (E10, E11, E14, E17 e E18), em "Atualizações por capturas".
