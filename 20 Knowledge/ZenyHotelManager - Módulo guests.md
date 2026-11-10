@@ -8,6 +8,7 @@ sources:
   - "[[2026-10-22 - ZenyHotelManager - Módulo guests - e0352073]]"
   - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
   - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
+  - "[[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]]"
 ---
 # ZenyHotelManager - Módulo guests
 
@@ -80,6 +81,26 @@ Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura 
 
 *Nota do curador:* a frase sobre anonimização e expurgo no texto literal acima foi trocada pela redação que a captura c889f886 indica; antes dizia que ambos eram do M10. Em 2026-11-09 a E15 estava `#em-andamento` e interrompida na branch `roadmap/m5-recepcao-fnrh` (ponta `e718190`), fora da `main`; conferido por `git` no repositório, sem captura da etapa.
 
+### Descrição de gênero (M5 E15, 2026-11-10)
+
+Origem: [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]]. Complementa o desenho da E15 acima, agora implementado (branch `roadmap/m5-recepcao-fnrh`, commit `1d72325`).
+
+Descrição de gênero (`genderDescription`):
+
+- Coluna `guests.guest.gender_description`, cifrada (`EncryptedStringConverter`).
+- Até 100 caracteres, sem `pattern`.
+- Só é aceita com gênero `OTHER`: regra no agregado e `CHECK guest_gender_description_ck`; erro `400 GENDER_DESCRIPTION_REQUIRES_OTHER_GENDER`.
+- Volta em toda resposta de perfil (`GuestResponse`); fica fora do `GuestSummary`.
+- Anda com o gênero na mesclagem (`merge`).
+- Entra na exportação do titular.
+- Sai na anonimização, inclusive da cadeia de absorvidos; o `guest_anonymized_ck` ganhou a coluna.
+- Trilha de auditoria registra só o nome do campo, não o valor.
+- Lacuna conhecida (E15 (h), herdada do M3): `restrict`, `lift-restriction` e `merge` devolvem o perfil inteiro conferindo só a permissão da escrita.
+
+O texto livre do perfil aceita caracteres de controle e de formatação Unicode; a renderização da ficha e dos PDFs (E10 e E11) precisa tratá-los.
+
+*Nota do curador (conferida no roadmap da branch em 2026-11-10):* segundo a decisão D-E15-4, a descrição volta com `guests.profiles.read`, que inclui o papel Financeiro, que não precisa do dado (precedente: `dietaryRestrictions`). Sobre a E15 (h), o roadmap acrescenta: com os modelos de role padrão não há exposição (só o Gerente tem essas permissões, e ele lê); uma role customizada com `guests.restrictions.manage` sem `guests.profiles.read` leria a descrição e as restrições alimentares. Recomendação registrada lá: exigir `guests.profiles.read` para o corpo completo dessas respostas (ou devolver um corpo mínimo) numa etapa de manutenção do `guests`. A descrição cifrada entra na lista da re-cifragem da M8 E15 (D-E15-1). Decisões ainda sem confirmação do usuário.
+
 ---
 
 ## Proveniência
@@ -87,3 +108,4 @@ Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo guests - e0352073]] (capture_id: e0352073-bfe8-4fc4-961a-3739a864fe04): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 260–285, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): lacunas do gênero `OUTRO` e do menor só com RG, em "Atualizações por capturas".
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): frase do expurgo substituída no texto; M5 E15 e M8 E16, em "Atualizações por capturas".
+- 2026-11-10 — [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]] (capture_id: a22890e7-e6b1-4e99-97d7-747bfcdd5788): descrição de gênero implementada na E15 (item 2 da captura) e nota sobre caracteres de controle no texto livre, em "Atualizações por capturas"; nota do curador conferida no roadmap da branch.

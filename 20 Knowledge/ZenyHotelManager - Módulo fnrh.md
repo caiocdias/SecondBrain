@@ -7,10 +7,11 @@ projects:
 sources:
   - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
   - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
+  - "[[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]]"
 ---
 # ZenyHotelManager - Módulo fnrh
 
-Referência técnica do projeto [[ZenyHotelManager]]. Integração com a FNRH Digital (Serpro/MTur), API v2.4. Estado: E07 concluída (configuração, domínios, porta e adaptador, validação local); o envio por eventos é a E08 e a homologação real é a E09.
+Referência técnica do projeto [[ZenyHotelManager]]. Integração com a FNRH Digital (Serpro/MTur), API v2.4. Estado: E07 concluída (configuração, domínios, porta e adaptador, validação local) e E15 concluída (descrição de gênero no envio); o envio por eventos é a E08 e a homologação real é a E09.
 
 Texto das capturas de atualização publicadas no repositório, integrado sem resumo. Referências como "SPEC", "ARCHITECTURE §x", "RF-…", "RN-…", "Hn", "Q-NN", "D-E07-n" e "Rn" apontam para `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/roadmaps/` e `docs/superpowers/` do repositório. O levantamento da API está em `docs/fnrh/api-fnrh-v2.4.md`. As regras que a FNRH provou para toda integração estão em [[ZenyHotelManager - Eventos e jobs]]; as decisões do lote E07 e o que falta confirmar, em [[ZenyHotelManager - Estado por marco]].
 
@@ -92,6 +93,8 @@ A porta é a do que a API v2.4 faz, não a lista da SPEC §8.2.17 (`registerStay
 - A mensagem do Serpro vem de `mensagem` no corpo JSON; o corpo bruto nunca é usado. O saneador troca por `***` os valores que o adaptador acabou de enviar (de 3 caracteres ou mais) e cada palavra deles com 3 ou mais letras (ignora maiúsculas e acentos, porque o Serpro pode ecoar só "MARIA"), as sequências de 5 ou mais dígitos e os e-mails, e corta em 200 caracteres.
 - Depois da revisão final: **todo caractere de controle Unicode (`Cc`) e os de formatação** são tratados no saneador e nos rótulos, inclusive U+2028 e U+2029. O saneador mascara os valores enviados e os padrões.
 - A mensagem saneada vai **só** para o log e para a exceção.
+- Desde o commit `8d6203a` (M5 E15), o controle Unicode é normalizado também nos valores enviados (antes, um valor com controle não casava com o eco devolvido).
+- Risco aceito D-E15-6: valor de 1 ou 2 caracteres ecoado não é mascarado (`MIN_VALUE_LENGTH = 3`).
 
 ## `fnrh.integration_call` (D-E07-8, decisão (g))
 
@@ -114,7 +117,7 @@ A porta é a do que a API v2.4 faz, não a lista da SPEC §8.2.17 (`registerStay
 
 - Fica em `domain`, sem Spring, junto com o mapeador e a lista do IBGE; **a E08 os monta**.
 - `FnrhLocalValidator.validate(person, guest, arrival, responsibleKnown)` devolve `FnrhFieldError(field, code)`, **nunca o valor**. Códigos: `REQUIRED`, `INVALID_VALUE`, `NOT_IN_DOMAIN`, `INCONSISTENT`. Regras: nome e documento obrigatórios (CPF passa pelo `Cpf`); nacionalidade e residência ISO 3166-1 alpha-2 (`Locale.getISOCountries()`, D-E07-4); nascimento, gênero e raça obrigatórios; gênero, raça, opção e tipo de deficiência, motivo de viagem e meio de transporte no catálogo; `OUTRO` exige descrição; deficiência `SIM` exige tipo; com residência `BR`, município obrigatório e na lista do IBGE, UF obrigatória e igual à do município (`INCONSISTENT`), CEP de 8 dígitos quando informado (e então logradouro, número e bairro); residência fora do `BR` não exige município nem UF; menor de 18 anos na data de entrada sem responsável gera `guest.responsibleGuestId`/`REQUIRED`.
-- Mapeador: documento = CPF se houver, senão passaporte (os outros tipos, como RG, não entram); gênero e raça mapeados aos códigos da API; raça ou gênero **nulos** significam "não coletado" e a validação acusa `REQUIRED` (D-E07-10); só `NOT_DECLARED`/`NOT_INFORMED` viram `NAOINFORMAR`/`NAOINFORMADO`. Na M5 E15, o mapeador passa a levar a descrição de gênero ([[ZenyHotelManager - Módulo guests]]).
+- Mapeador: documento = CPF se houver, senão passaporte (os outros tipos, como RG, não entram); gênero e raça mapeados aos códigos da API; raça ou gênero **nulos** significam "não coletado" e a validação acusa `REQUIRED` (D-E07-10); só `NOT_DECLARED`/`NOT_INFORMED` viram `NAOINFORMAR`/`NAOINFORMADO`. O `FnrhGuestData` tem `genderDescription` e o `FnrhPersonMapper` a envia como `GeneroDescricao` somente com `OUTRO` (M5 E15; [[ZenyHotelManager - Módulo guests]]).
 - **Lista do IBGE (decisão (d)):** recurso versionado `src/main/resources/fnrh/ibge-municipios.csv` (5.571 municípios; `codigo;uf`), com o cabeçalho trazendo a fonte (`https://servicodados.ibge.gov.br/api/v1/localidades/municipios`), a data do download e o SHA-256 do JSON. **Risco aceito: um município criado depois do download é recusado até o recurso ser atualizado.** A API da FNRH não tem endpoint de municípios. Descartada a validação só de formato.
 - A validação local recebe a residência nula sem erro e não confere o `checkedOutAt`: a E08 decide.
 
@@ -149,6 +152,7 @@ A porta é a do que a API v2.4 faz, não a lista da SPEC §8.2.17 (`registerStay
 
 - Confirmar se o `POST /reservas/{id}/hospedes` aceita `CHECKIN_REALIZADO` numa reserva `CRIADA`.
 - Confirmar se o filtro `codigo_reserva` casa exatamente (hoje só a página 1 é lida).
+- Confirmar o limite real e o eco de `GeneroDescricao` na homologação (M5 E15).
 - Confirmar o formato do `400`, o caminho do no-show (`/no-show` ou `/noshow`), a ordem de `dados_hospedes` e o limite de 200 caracteres da senha.
 - A E09 segue `#bloqueada` (Q-12) e depende de E08 e E16. A homologação continua fora do gate do M5 e passa a ser cobrada pelo gate de inauguração (M8 E13).
 
@@ -164,3 +168,4 @@ A porta é a do que a API v2.4 faz, não a lista da SPEC §8.2.17 (`registerStay
 
 - 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): texto proposto para o módulo (item 2 da captura), integrado sem resumo, com abertura sugerida pela captura; o "Limite conhecido" da credencial foi substituído conforme a captura c889f886.
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): M5 E16 (limpar credencial), M5 E15 no mapeador, conciliação e view da E08, SPEC §8.2.17 e no-show pela M6 E14.
+- 2026-11-10 — [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]] (capture_id: a22890e7-e6b1-4e99-97d7-747bfcdd5788): frase da E15 no mapeador substituída pelo envio de `GeneroDescricao`; saneador (`8d6203a`, D-E15-6) e nota para a E09 complementados.

@@ -14,6 +14,7 @@ sources:
   - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
   - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
   - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
+  - "[[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]]"
 ---
 # ZenyHotelManager - Estado por marco
 
@@ -219,6 +220,21 @@ Limites da revisão, segundo a captura:
 
 *Nota do curador (conferência por `git` no repositório em 2026-11-09, sem captura correspondente):* a `main` local continua em `ca9f9e2`, `origin/main` em `15bbcdb` (referência local) e as alterações da revisão seguem sem commit na árvore da `main`. A linha "a branch não existe mais" valia na data da captura: a branch `roadmap/m5-recepcao-fnrh` foi recriada depois, em worktree próprio (`.claude/worktrees/roadmap-m5-recepcao-fnrh`), com 19 commits à frente da `main`, ponta `e718190` (2026-11-06 21:07), "Registra o ponto de retomada da E15 (execução interrompida a pedido do usuário)". O roadmap dessa branch marca a E15 `#em-andamento`.
 
+### M5 E15 (2026-11-10)
+
+Origem: [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]], que substitui o estado do M5 e da E15 acima (E15 `#em-andamento`, interrompida; ordem E15, E08, E16, E10).
+
+- M5 E15 `#concluida` em 2026-11-10 (commit de fechamento `1d72325`, branch `roadmap/m5-recepcao-fnrh`).
+- M5 com E01 a E07, E13, E14 e E15 concluídas. Próxima elegível: E08 (revisão humana: sim), depois E16 e E10. E09 segue `#bloqueada` (Q-12), dependente de E08 e E16.
+- Decisões do lote E15 (a) a (h) tomadas pela opção recomendada, sem confirmação do usuário (mesmo regime dos lotes E04 a E06, E13, E14 e E07). Destaques:
+  - D-E15-4: o módulo Financeiro lê a descrição de gênero.
+  - D-E15-6: o eco curto não é mascarado (ver [[ZenyHotelManager - Módulo fnrh]]).
+  - E15 (h): lacuna conhecida herdada do M3 (ver [[ZenyHotelManager - Módulo guests]]).
+
+Nota para E10 e E11: o texto livre do perfil do hóspede aceita caracteres de controle e de formatação Unicode. A renderização da ficha e dos PDFs precisa tratá-los.
+
+*Nota do curador (conferência no repositório em 2026-11-10, sem captura correspondente):* a seção "Decisões do lote E15" do roadmap da branch confirma (a) a (h): (a) descrição cifrada (D-E15-1); (b) até 100 caracteres, sem `pattern` (D-E15-2); (c) `400 GENDER_DESCRIPTION_REQUIRES_OTHER_GENDER` (D-E15-3); (d) a descrição volta no `GuestResponse` com `guests.profiles.read`, que o Financeiro tem (D-E15-4); (e) anda com o gênero na mesclagem (D-E15-5); (f) eco de 1 ou 2 caracteres não mascarado (D-E15-6); (g) saneador normaliza o controle também nos valores enviados (`8d6203a`); (h) `restrict`, `lift-restriction` e `merge` devolvem o perfil inteiro conferindo só a permissão da escrita. O texto do roadmap data as decisões de 2026-11-06 e 2026-11-10, delegadas ao orquestrador. A E15 **não** está na `main`: a `main` local segue em `ca9f9e2` e `origin/main` em `15bbcdb` (referência local). A branch já tem a **E08 `#em-andamento`**: plano em `183e3d8` e Tasks 1 a 6 até `ad86e24` (2026-11-10 16:57).
+
 ---
 
 ## Proveniência
@@ -232,3 +248,4 @@ Limites da revisão, segundo a captura:
 - 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): estado do M5 após a E14 (ainda fora de `origin/main`), fatos e decisões do lote E14 (a confirmar).
 - 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): estado do M5 após a E07, fatos e decisões do lote E07 (a confirmar).
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): revisão dos roadmaps M5 a M10, decisões R1 a R16, hipóteses, etapas novas e limites; nota do curador com a conferência por `git`.
+- 2026-11-10 — [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]] (capture_id: a22890e7-e6b1-4e99-97d7-747bfcdd5788): estado do M5 após a E15, destaques das decisões do lote E15 (a confirmar) e nota para E10 e E11; nota do curador com a conferência do roadmap da branch e por `git`.
