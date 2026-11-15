@@ -7,6 +7,12 @@ projects:
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Segurança, autenticação e autorização - 822ef2ab]]"
   - "[[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 (revisão humana) - 25b5cce4]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]]"
 ---
 # ZenyHotelManager - Segurança, autenticação e autorização
 
@@ -61,9 +67,48 @@ Origem: [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9
 - **Permissões novas do `fnrh`:**
   - `fnrh.settings.manage`: só o **Administrador**, **sem modelo de role** (o Administrador recebe todas as permissões e não pode constar em nenhum `RoleTemplate`). Cobre a configuração, o CPF solicitante por usuário e o `refresh` dos domínios.
   - `fnrh.domains.read` e `fnrh.submissions.read`: Gerente e Recepcionista.
-  - Nenhuma é sensível. `fnrh.submissions.manage` virá na E08.
+  - Nenhuma é sensível.
+  - `fnrh.submissions.manage` (M5 E08, D-E08-12): **não sensível**, modelo de role só para o **Gerente**. Cobre `POST /api/v1/fnrh/submissions/{id}/retry` e `/dismiss` e define quem recebe o alerta `notifications.integration-failure` do envio. Decisão E08 (h), sem confirmação do usuário (origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]]).
+  - `fnrh.submissions.read` continua com Gerente e Recepcionista e passa a cobrir também `GET /api/v1/fnrh/submissions` (além de `GET /api/v1/fnrh/status`).
 - **Regra nova: credencial de integração não vai em claro para a trilha.** O `username` da configuração da FNRH foi tirado do retrato de auditoria (commit `f8d7ea9`); a trilha da configuração não guarda senha, usuário nem CPF em claro. Vale para as próximas integrações (M7, M8).
+  - Desde a M5 E16 (2026-11-11), toda integração com credencial tem também a ação `POST …/clear-credentials` (regra da ARCHITECTURE §12, texto em [[ZenyHotelManager - Eventos e jobs]]; a da FNRH em [[ZenyHotelManager - Módulo fnrh]]). Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]].
 - **Convenção, protegida por teste: a API não expõe `DELETE`.** O build barrou o `DELETE /fnrh/requesters/{userId}` do plano; a saída foi a desativação (`POST …/deactivate`), que apaga o dado sensível e mantém a linha. Itens que "saem" são desativados, não apagados.
+
+### Credencial de serviço e impressão (M5 E10, 2026-11-11)
+
+Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (ARCHITECTURE §8.1, D-E10-1), com o complemento [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 (revisão humana) - 25b5cce4]]. Vale sobre o marcador "**Segurança e autenticação**" do texto literal acima onde ele diz que todo `/api/**` exige o JWT de usuário e que não há Basic nem formulário. Módulo em [[ZenyHotelManager - Módulo printing]].
+
+- **Credencial de serviço (M5 E10):** o agente de impressão e as integrações de entrada usam uma segunda forma de autenticação, uma porta do `shared`: cada módulo implementa um `ServiceCredentialRealm` (`name`, `pathPrefix`, `openApiScheme`, `authenticate(token): ServicePrincipal?`), e o `ServicePrincipal(realm, id, credentialStamp)` leva um carimbo opaco que muda quando a credencial é trocada. A `SecurityConfiguration` monta sempre a cadeia `serviceSecurityFilterChain` (`@Order(1)`, antes da de usuário), com um matcher por prefixo de realm (`PathPatternRequestMatcher`, o mesmo do MVC; sem realm, nunca casa). O filtro lê só `Authorization: Bearer` e, sem token ou com token recusado, responde `401 UNAUTHENTICATED` pelo `ProblemWriter` (RFC 9457, `WWW-Authenticate: Bearer`); sem sessão, CSRF, Basic nem formulário. Um JWT de usuário num caminho de realm é recusado; um token de realm fora do prefixo cai na cadeia de usuário e também é recusado. O prefixo é validado como literal na partida (sem `?`, `..`, `#`, espaço ou curinga) e a partida falha se dois prefixos se sobrepõem. Falha de infraestrutura ao autenticar vira `500` genérico, nunca `401`. O `CurrentActor` do `iam` não reconhece o principal de serviço (as escritas do agente são do ator sistema). O `OpenApiConfiguration` aplica o esquema do realm às operações do prefixo. Alternativa descartada: a cadeia dentro do `printing` (duplicaria o `ProblemWriter`, interno do `shared`, e espalharia segurança por módulo de plataforma).
+- **Token do agente de impressão** (`printAgentToken`, só em `/api/v1/print-agents/me/`): `zpa_` + 32 bytes, só o SHA-256 guardado, exibido uma vez; detalhes em [[ZenyHotelManager - Módulo printing]]. O endpoint de realm novo **não** é público: ele não entra na lista `PUBLIC_API_ENDPOINTS` do `ApiSecurityTest` e leva o esquema `printAgentToken` no contrato, não `security: []`.
+- **Permissões novas:** `printing.agents.manage` (Administrador), `printing.jobs.read` (Gerente e Recepcionista) e `printing.jobs.manage` (Gerente). Nenhuma é sensível.
+- **Regra para M7 e M8:** toda credencial de serviço (webhooks, channel manager etc.) entra como realm, não como mais um caso na cadeia de usuário.
+- **Cifragem (ARCHITECTURE §8.3):** o conteúdo dos jobs de impressão está entre os valores cifrados que ainda não têm job de rotação (pendência da M8 E15); ver [[ZenyHotelManager - Módulo printing]] e o passo 3 da rotação em [[ZenyHotelManager - Ambiente, banco, chaves e build]].
+
+**Revisão humana da E10 (decisão do usuário, 2026-11-11):** o usuário aprovou a credencial de serviço como porta em `shared` (`ServiceCredentialRealm` mais uma segunda cadeia de segurança) como **padrão para M7 e M8**, e o contrato do agente (token `zpa_`, esquema `printAgentToken`). A regra para M7 e M8 acima deixa de ser só decisão do orquestrador. As demais decisões aprovadas estão em [[ZenyHotelManager - Módulo printing]].
+
+*Nota do curador (conferência no repositório em 2026-11-15, só leitura, no merge `6a025d5`):* a captura dava como inferência não verificada que as rotas do realm não entram em `PUBLIC_API_ENDPOINTS`. No `ApiSecurityTest`, essa lista tem só `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `GET /api/v1/meta/version` e `GET /api/v1/files/{id}/content`, e o teste confere que o realm `print-agent` cobre só `PrintAgentSelfController`, `PrintAgentJobsController` e `PrintAgentStreamController`, que nenhuma rota pública ou de usuário casa com o prefixo dele e que a descrição da API cita o esquema `printAgentToken`.
+
+### Corpo das respostas de escrita do `guests` (decisão do usuário sobre a E15 (h), 2026-11-11)
+
+Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]] (entrevista do usuário no fim do lote do M5, registrada no roadmap da branch `roadmap/m5-recepcao-fnrh`, commit `2185e41`). Detalhe em [[ZenyHotelManager - Módulo guests]].
+
+- **Decisão do usuário, implementada na M6 E17 (2026-11-15; item seguinte):** numa etapa de manutenção do `guests`, o corpo completo das respostas de `restrict`, `lift-restriction` e `merge` passa a exigir `guests.profiles.read`; sem essa permissão, a resposta traz um corpo mínimo. Na data da decisão, a etapa ainda não existia em roadmap e cabia ao `claude --agent arquiteto` criá-la. *Atualização (sincronização do M6, 2026-11-12, [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]]):* criada como M6 E17 (Revisão humana: sim). O item "Credencial" da ARCHITECTURE §12 (na API, o segredo é a senha; o `username` continua fora da trilha e dos logs) está em [[ZenyHotelManager - Módulo fnrh]].
+- **Implementada na M6 E17** (2026-11-15; origem [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]], item 1, e [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 (revisão humana) - 4ab01eb7]]): as três escritas continuam exigindo só a permissão da própria escrita (`guests.restrictions.manage` ou `guests.profiles.merge`); o corpo depende de `guests.profiles.read`, perguntada no caso de uso por `Authorization.grantOrNull` depois do `require` da escrita, na mesma transação. Sem ela, o corpo é `GuestWriteSummaryResponse {id, restricted}` (aprovado pelo usuário em 2026-11-15, H14 (b)), e nada é decifrado. Os modelos de role padrão não mudam; a mudança de forma só alcança roles customizadas sem `guests.profiles.read`. Detalhe em [[ZenyHotelManager - Módulo guests]] ("Corpo mínimo nas escritas de restrição e mesclagem"); regra de contrato em [[ZenyHotelManager - Convenções de API]].
+
+### Fechamento do dia: ações sensíveis (M6 E10, 2026-11-13)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (item 5). Permissões e rotas em [[ZenyHotelManager - Módulo endofday]].
+
+- Duas ações sensíveis novas: `endofday.run.start` (recurso `endofday.business-date:<data>`, no `POST /api/v1/end-of-day/runs`) e `endofday.run.resume` (recurso `endofday.run:<id>`, no `POST …/runs/{id}/resume`), com a permissão `endofday.runs.execute` (ALL, **sensível**; Gerente). `endofday.runs.read` (ALL; Gerente, Recepcionista, Financeiro) não é sensível. `AuthorizationTest` (lista exata do Gerente) atualizado.
+
+### Permissão do check-in abre a ficha de registro (M6 E15, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (item 4). A nota não tinha lista de permissões do `frontdesk`; as permissões da recepção estão em [[ZenyHotelManager - Hospedagem e recepção]] ("Permissões" do check-in orquestrado e "M5 E11 — ficha de registro").
+
+- A permissão `frontdesk.stays.checkin`, que faz o check-in, **também abre a ficha de registro** (PDF e impressão), o que já valia desde a M5 E11 (D-E11-10: nenhuma permissão nova para a ficha) e agora está dito no catálogo `GET /api/v1/permissions`. Descrição nova (D-E15-5): "Fazer o check-in de uma reserva confirmada (com a caução opcional) e abrir a ficha de registro (PDF e impressão)". Código, sensibilidade, escopos, modelos de role e concessões iguais aos de antes.
+- Uma mudança só de descrição troca a versão das autorizações mas **não derruba sessões abertas nem muda concessões** (provado por `FrontdeskCheckInPermissionDescriptionTest` e `FrontdeskCheckInPermissionAttackTest`, com o token de recepcionista anterior ainda abrindo o PDF da ficha com `200`). O modo de testar a troca de descrição está em [[ZenyHotelManager - Testes de integração]].
+
+*Nota do curador (conferência por `git` em 2026-11-15, só leitura, no merge `b42ce6f`):* em `frontdesk/FrontdeskPermissions.kt`, a declaração de `STAYS_CHECK_IN` tem a descrição "Fazer o check-in de uma reserva confirmada (com a caução opcional) e abrir a ficha de registro " + "(PDF e impressão)", com `setOf(ALL)`; os dois testes citados existem em `src/test/kotlin/com/zeny/hotel/frontdesk/`, sem leitura do corpo.
 
 ---
 
@@ -71,3 +116,13 @@ Origem: [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Segurança, autenticação e autorização - 822ef2ab]] (capture_id: 822ef2ab-cdc0-4a81-8c89-77c9af576a1f): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 155–185, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): permissões do `fnrh`, credencial fora da trilha e convenção sem `DELETE`, em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]] (capture_id: 8df87866-4285-4e24-8878-0fab70c9436c): `fnrh.submissions.manage` e ampliação de `fnrh.submissions.read` (item 3 da captura).
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]] (capture_id: 65d0d4ff-bc24-4f40-94ba-c062bdf2b9c1): decisão do usuário sobre a E15 (h), corpo das respostas de escrita do `guests` condicionado a `guests.profiles.read` (pendente de implementação).
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]] (capture_id: 6095f729-34e7-4667-9c48-d112262c6212): remissão à regra da ação `clear-credentials` de toda integração (item 2 da captura).
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (capture_id: 4dd12e66-191b-406d-a974-4ae7dca3e15f): credencial de serviço (`ServiceCredentialRealm`, segunda cadeia), token do agente, permissões do `printing`, regra para M7 e M8 e cifragem do conteúdo de impressão (item 2 da captura); nota do curador com a conferência do `ApiSecurityTest`.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 (revisão humana) - 25b5cce4]] (capture_id: 25b5cce4-a919-4cf3-aaaf-99b5722239e8): credencial de serviço como porta no `shared` aprovada pelo usuário como padrão para M7 e M8.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]] (capture_id: 3a747cdc-6309-4bfa-bea2-3f6cd483a30f): etapa da E15 (h) criada como M6 E17 e remissão ao item "Credencial" da §12.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): ações sensíveis `endofday.run.start` e `endofday.run.resume` e permissões do `endofday` (item 5 da captura).
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (capture_id: c139da21-4f16-40bc-8cae-9ee2dc4444c3): descrição nova de `frontdesk.stays.checkin` (abre a ficha) e sessões mantidas na troca de descrição (item 4 da captura); nota do curador com a conferência por `git`.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]] (capture_id: cb3979d0-82db-4bb4-bf98-0a7b8630e398): decisão sobre a E15 (h) dada como implementada na M6 E17 (corpo das escritas do `guests` condicionado a `guests.profiles.read`, item 1 da captura).
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 (revisão humana) - 4ab01eb7]] (capture_id: 4ab01eb7-f60b-483f-8ae1-66de5753d21c): corpo mínimo `{id, restricted}` aprovado pelo usuário (H14 (b)).

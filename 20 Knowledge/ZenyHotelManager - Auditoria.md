@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Auditoria - a4fe3210]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]]"
 ---
 # ZenyHotelManager - Auditoria
 
@@ -37,6 +38,22 @@ Texto literal do `CLAUDE.md` do repositório, linhas 520–539, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### Rollback em toda exceção (decisão da M6 E18, 2026-11-13; ainda não implementada)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 4; ARCHITECTURE §5 item 6). Decisão registrada na ARCHITECTURE, **não é comportamento atual**: entra no código com a M6 E18. Complementa o marcador "**Transação**" do texto literal acima.
+
+- O `@EnableTransactionManagement` do `shared` passa a usar `rollbackOn = RollbackOn.ALL_EXCEPTIONS`: exceção *checked* que escapa de um caso de uso passa a desfazer a escrita, e a escrita nunca fica confirmada sem trilha.
+- O `noRollbackFor` explícito de quem grava a recusa (`recordRejections`, como login com falha) continua valendo.
+- Alternativa descartada (ARCHITECTURE §5 item 6): `rollbackFor = Throwable` em cada caso de uso.
+- A E18 também prevê que o inventário dos caminhos com exceção *checked* dentro de `@Transactional` saia no handoff; ainda não existe.
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Auditoria - a4fe3210]] (capture_id: a4fe3210-4817-4e56-97e8-e9821d0b1ee1): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 520–539, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): `rollbackOn = RollbackOn.ALL_EXCEPTIONS` no `@EnableTransactionManagement` do `shared` (decisão para a M6 E18, item 4 da captura), em "Atualizações por capturas" (seção criada).

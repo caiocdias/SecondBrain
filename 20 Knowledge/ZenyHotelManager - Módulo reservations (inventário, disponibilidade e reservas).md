@@ -49,8 +49,30 @@ Texto literal do `CLAUDE.md` do repositório, linhas 402–434, no commit `a6c0f
   - **Trilha** (H10 do M3): `reservations.booking.create` (entidades `reservations.booking` e `reservations.reservation`: ids, códigos, situação, datas, contagens, segmento, os termos pelo id e a versão, os totais, as noites editadas e o maior desconto; os pedidos especiais só como `hasSpecialRequests`, os hóspedes só pelos ids) e `reservations.guest-reference.repoint`.
   - **Testes:** `BookingDomainTest`, `BookingsApiTest` (reserva simples e agrupadora com o inventário, as contas e `ReservationCreated` pelo `Scenario`; preço e termos congelados; pré-reserva; desconto no teto, acima com `APPROVAL_REQUIRED`, sem a permissão e aprovado; diária abaixo dos inclusos; sem unidade com nada gravado; 6 criações simultâneas pela última UH; idempotência; day use; recusas de venda; permissões; a recontagem) e `BookingGuestsApiTest` (alerta da restrição; mesclado, anonimizado e inexistente; `GuestsMerged` pelo listener e a reentrega sem efeito; o reapontamento que espera a criação com o perfil; a anonimização recusada e a exportação com aprovação), no contexto do `InventoryApiTest` (`ReservationsTestSupport`, com tipos de UH e hóspedes próprios, sem documentos, para a mesclagem).
 
+
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### Dependências do `reservations` (auditoria da M5 E12, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (auditoria G13). Complementa a lista literal acima (`["shared", "hotel", "rooms"]` e, desde a E06, `"rates"`).
+
+- `allowedDependencies` do `reservations` em 2026-11-12: `shared`, `hotel`, `rooms`, `rates`, `guests`, `billing`, `notifications`, `printing` (`reservations/ReservationsModule.kt:24`; o `printing` desde a E11, só a `PrintingApi`, para a confirmação de reserva). Implementa `FolioOwnerDescriber` para `FolioOwnerType.RESERVATION` (`ReservationFolioOwnerDescriber`).
+- Desde 2026-11-12 (decisão do usuário), a ordem `rates` < `reservations` < `frontdesk` é regra da camada Hospedagem, e `reservations` → `rates` deixou de ser exceção: ver [[ZenyHotelManager - Arquitetura e estrutura de módulos]].
+
+### Regra única das cobranças da estadia (M6 E11, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (item 3). Consultas por data, no-show e pré-reservas da mesma etapa em [[ZenyHotelManager - Módulo reservations (ciclo de vida, alocação, grupos e busca)]] ("M6 E11"); uso pela etapa `room-charges` em [[ZenyHotelManager - Módulo endofday]].
+
+- **Regra única das cobranças da estadia** (`reservations/NightCharges.kt`): `ReservationNightCharges.of(reservation, night, tourismFeePerPersonNight)` devolve `NightCharge` (`kind` `ROOM`/`PACKAGE`/`TOURISM_FEE`, `sourceReference`, `includedInRate`) por noite congelada; valor zero não se lança; hospedagem e pacotes inclusos sem taxa de serviço (RN-11). `ReservationsApi.chargesDue` devolve `StayCharges(reservationId, folioId, charges)` por hospedada até uma data. O `endofday` não usa tipos de `rates`.
+- O check-out da M5 E04 usa a mesma regra ([[ZenyHotelManager - Hospedagem e recepção]], "M6 E11").
+
 ---
 
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo reservations - inventário, disponibilidade e reservas - 67a3b905]] (capture_id: 67a3b905-b8e5-4470-98cd-a9fb4fb6b35c): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 402–434, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): dependências do `reservations` em 2026-11-12 (G13), em "Atualizações por capturas" (seção criada).
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]] (capture_id: 3a747cdc-6309-4bfa-bea2-3f6cd483a30f): remissão à ordem interna da camada Hospedagem.
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (capture_id: df23f14d-ec3c-4fa2-aa75-462913ddaf5e): regra única das cobranças da estadia (`ReservationNightCharges`, `chargesDue`; item 3 da captura), na subseção "M6 E11".

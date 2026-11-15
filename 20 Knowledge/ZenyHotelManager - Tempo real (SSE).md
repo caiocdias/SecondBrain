@@ -6,6 +6,8 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Tempo real (SSE) - 52209457]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]]"
 ---
 # ZenyHotelManager - Tempo real (SSE)
 
@@ -26,6 +28,27 @@ Texto literal do `CLAUDE.md` do repositório, linhas 130–137, no commit `a6c0f
 
 ---
 
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto.
+
+### Segundo SSE: o do agente de impressão (M5 E10, 2026-11-11)
+
+Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (ARCHITECTURE §10). Complementa o marcador "**Tempo real**" acima.
+
+- **Segundo SSE, o do agente de impressão (M5 E10):** `GET /api/v1/print-agents/me/jobs/stream`, autenticado pelo token do agente, **fora do `RealtimeHub`**: sem broadcaster em processo e sem buffer circular. O `Last-Event-ID` é a posição persistida do job; cada conexão consulta a fila no banco a cada 1 s (`zeny.printing.delivery-poll-interval`); heartbeat `: heartbeat` a cada 15 s; duração máxima 30 min; um stream por agente (o novo despeja o anterior). A reivindicação (`FOR UPDATE SKIP LOCKED`) vale com uma ou várias instâncias, mas o registro de conexões é em memória e vale por instância. O encerramento na parada do servidor é de um `SmartLifecycle` próprio (`PrintAgentConnections`), que para antes do *graceful shutdown*. Protocolo completo em [[ZenyHotelManager - Módulo printing]].
+- **Testes:** no modelo do `RealtimeStreamTest` (contexto com `webEnvironment = RANDOM_PORT` e cliente SSE real); o `SseTestClient` ganhou `openPath` para abrir um caminho qualquer com um cabeçalho de autorização próprio.
+
+### Tópico `end-of-day` (M6 E10, 2026-11-13)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (item 5; ARCHITECTURE §10).
+
+- Tópico `end-of-day` (permissão `endofday.runs.read`), do módulo `endofday`: mensagem `endofday.run` a cada transição da execução; detalhe em [[ZenyHotelManager - Módulo endofday]] ("Tempo real").
+
+---
+
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Tempo real (SSE) - 52209457]] (capture_id: 52209457-a598-432e-a841-ad4b3ccc8217): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 130–137, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (capture_id: 4dd12e66-191b-406d-a974-4ae7dca3e15f): segundo SSE, o do agente de impressão, e seus testes, em "Atualizações por capturas" (item 3 da captura).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): tópico `end-of-day` (item 5 da captura).

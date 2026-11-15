@@ -7,6 +7,13 @@ projects:
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Eventos e jobs - 4e9ffb74]]"
   - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 (revisão humana) - fa5b192f]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]]"
 ---
 # ZenyHotelManager - Eventos e jobs
 
@@ -53,9 +60,79 @@ Citação literal de `docs/ARCHITECTURE.md` §12 (árvore de trabalho, sem commi
 
 Lista de jobs: a tabela da ARCHITECTURE §13 troca "Retenção LGPD (anonimização e expurgo)" por "Expurgo dos dados sensíveis da FNRH (M8 E16)" e "Anonimização de perfis por prazo (M10 E13)", ambos semanais. Nenhum deles existe ainda.
 
+### Primeiros consumidores dos eventos de reserva e hospedagem e job do envio à FNRH (M5 E08, 2026-11-11)
+
+- **`FnrhSubmissionListeners`** (`fnrh`, M5 E08) são os primeiros consumidores de produção de `ReservationCreated`, `ReservationChanged`, `ReservationConfirmed`, `ReservationReactivated` e `ReservationCancelled` (M4) e de `GuestCheckedIn`, `GuestCheckInUndone` e `GuestCheckedOut` (M5 E01). São 8 métodos `@ApplicationModuleListener` (9 desde a M6 E14, com `ReservationMarkedNoShow`; ver a subseção "M6 E14" abaixo), e o outbox passa a gravar essas publicações. Cada um **só grava** a `FnrhSubmission`, nunca envia. São idempotentes pela chave `(reservation_id, operation, event_key)`, com `INSERT … ON CONFLICT DO NOTHING`: a reentrega, inclusive fora de ordem ou com a submissão já `SENT`, não grava outra. A ordem entre eles não importa, porque a fila ordena pela versão causal. `RoomMoved` não tem listener no `fnrh`; `AvailabilityChanged`, `RatesChanged` e `RestrictionsChanged` seguem sem consumidor de produção (M8).
+- **Job `FnrhSubmissionJob`** (ShedLock `fnrh-submissions-send`, a cada `zeny.fnrh.submissions.interval`, 1 min, depois de 1 min do boot): envia as cabeças vencidas da fila (até `batch-size`, 50) pelo `FnrhSubmissionSender`, que não é `@Transactional` e chama o Serpro fora de transação. O resultado é gravado pelo `FnrhSubmissionRecorder` (`@Audited`, ator sistema). `lockAtMostFor = PT1H` (decisão E08 (k)), porque uma execução pode levar muito mais que os 10 min dos outros jobs (50 submissões, várias chamadas de até 25 s). Custo: uma instância que morre com a trava atrasa o envio em até 1 h. Sem configuração da FNRH, não faz nada.
+- **Testes:** `FNRH_SEND_DEFERRED` (`zeny.fnrh.submissions.initial-delay=PT24H`) no `@IntegrationTest` adia o job, e os testes chamam o envio direto, só para a própria reserva (`sendDueFor`). O `InventoryListenersQuiescence` passou a esperar também as publicações dos `FnrhSubmissionListeners` (`listener_id LIKE '%fnrh.application.FnrhSubmissionListeners%'`) antes de baixar `/api/v1/sync/changes`.
+
+A ARCHITECTURE §12 ganhou a regra "**Envio assíncrono por pedido**", que vale para toda integração (M7 e M8 a repetem):
+
+> **Envio assíncrono por pedido:** o evento só grava o pedido (idempotente por recurso, operação e evento); um job com ShedLock envia fora de transação, em ordem causal por recurso (a versão do agregado no evento), com retry de backoff limitado, e cada passo age sobre o estado atual, não sobre a ordem de chegada. Falha que o retry não resolve fica parada e visível, com reenvio e **encerramento manual** (o encerrado não segura a fila); o resultado é gravado mesmo se o alerta falhar.
+
+Na revisão humana da E08 (2026-11-11, roadmap da branch `roadmap/m5-recepcao-fnrh`, commit `2185e41`), o usuário aprovou esse padrão: ele é **a referência para os envios assíncronos de M7 e M8**. As decisões (a) a (n) do lote E08 seguem revisáveis uma a uma.
+
+A regra "Resultado incerto" ganhou a escrita em curso: "Antes de cada escrita que cria recurso, a marca de **escrita em curso** é gravada em transação própria e só some quando o id remoto é gravado: uma queda entre a resposta e a gravação leva à conciliação, nunca a um segundo envio. A marca vale para o recurso, não só para o pedido que a ligou (qualquer pedido do mesmo recurso concilia antes de criar)." A tabela de jobs da §13 ganhou a linha do envio à FNRH (1 min).
+
+### Regra da credencial: a ação de limpar (M5 E16, 2026-11-11)
+
+Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]]. Complementa a regra "**Credencial**" da ARCHITECTURE §12 citada em "Padrão de integração e jobs previstos" acima, com o texto novo da linha "Credencial" (decisão D-E16-7, sem confirmação do usuário):
+
+> Toda integração com credencial tem a ação `POST …/clear-credentials` com `If-Match`, sem `Idempotency-Key`; ela apaga a credencial e desliga a integração, mantendo o ambiente e o que não é credencial; repetir é `200` e mantém o `ETag`; religar exige credencial nova; a trilha fica sem segredo nem usuário. A M5 E16 é a primeira a seguir a regra, e os provedores de M7 e M8 nascem com ela (R6).
+
+A implementação da FNRH está em [[ZenyHotelManager - Módulo fnrh]] ("Configuração cifrada, por ambiente").
+
+### Job de manutenção da fila de impressão (M5 E10, 2026-11-11)
+
+Origem: [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]]. Complementa a lista de jobs do segundo marcador do texto literal ("Jobs do `shared`: …"), que não menciona o `printing`, e a subseção "Padrão de integração e jobs previstos" acima:
+
+- Do `printing`: `PrintingJobsMaintenance` (ShedLock `printing-jobs-maintenance`, a cada `zeny.printing.maintenance-interval`, 1 min; `lockAtMostFor` PT10M; adiado nos testes por `PRINTING_MAINTENANCE_DEFERRED`). Reenvio dos `SENT` sem confirmação e limite de tentativas, validade dos `PENDING`, jobs de impressora inativa ou de agente desativado e expurgo do conteúdo, uma transação por job com a linha travada (regras em [[ZenyHotelManager - Módulo printing]]). Escrita técnica do ator sistema; sem alerta por `notifications` (o `printing` não depende dele).
+
+### Fechamento do dia: gatilho e trava de execução (M6 E10, 2026-11-13)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (item 4), com o complemento [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 (revisão humana) - fa5b192f]], que vale sobre ela no risco abaixo. Módulo em [[ZenyHotelManager - Módulo endofday]].
+
+- Jobs novos: `EndOfDayTriggerJob` (`end-of-day-trigger`, 1 min) e a trava de execução `end-of-day-run` (ShedLock com keep-alive, usada por execução manual, retomada e automático). ARCHITECTURE §13 atualizada.
+- Risco registrado para a E11: o `tick()` espera o motor por até `lock-at-most-for` e o agendador do Spring tem uma thread por padrão; com etapas reais longas, os demais jobs ficariam parados. **Resolvido pela decisão do usuário** (revisão humana da E10, 2026-11-13, H12): na E11, o gatilho automático passa a só disparar o motor e voltar (espera curta), sem mudar o pool do agendador do Spring.
+
+### Log das exceções dos jobs (decisão da M6 E18, 2026-11-13; ainda não implementada)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 5; ARCHITECTURE §13, primeiro parágrafo, que remete à §16). Decisão registrada na ARCHITECTURE, **não é comportamento atual**: entra no código com a M6 E18. O tratador único é decisão do `arquiteto` (H13).
+
+- Exceção que escapa de um job, inclusive a falha da trava do ShedLock com o banco fora, é logada pelo tratador de erro do agendador do `shared` com o nome da tarefa e só a classe da exceção e das causas, **sem a mensagem**, que pode trazer valores do banco.
+- O tratador de erro é único, o do agendador da aplicação, e não um por job. Alternativa descartada: `try/catch` por job.
+
+### Fechamento do dia: gatilho que só dispara o motor e `ReservationMarkedNoShow` (M6 E11, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (item 7). Implementa a decisão do usuário registrada na subseção "Fechamento do dia: gatilho e trava de execução (M6 E10)" acima. Etapas em [[ZenyHotelManager - Módulo endofday]].
+
+- O `EndOfDayTriggerJob` (`end-of-day-trigger`, 1 min) só dispara o motor e volta (`zeny.endofday.trigger.wait`, padrão `PT5S`, até `PT1M`), sem bloquear o agendador de uma thread por `lock-at-most-for`. ARCHITECTURE §13 (etapas do fechamento) atualizada.
+- Novo evento publicado: `ReservationMarkedNoShow` (campos e regras em [[ZenyHotelManager - Módulo reservations (ciclo de vida, alocação, grupos e busca)]], "M6 E11"); o primeiro consumidor de produção é o `fnrh` (M6 E14, subseção abaixo).
+- O `ProvisionalExpiryJob` (5 min) continua existindo ao lado da etapa `provisional-expiry` do fechamento.
+
+### Primeiro consumidor de `ReservationMarkedNoShow`: o `fnrh` (M6 E14, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E14 - 998156dc]] (item 3). Complementa a subseção "Primeiros consumidores dos eventos de reserva e hospedagem e job do envio à FNRH (M5 E08)" acima. Envio em [[ZenyHotelManager - Módulo fnrh]] ("No-show (M6 E14, 2026-11-14)").
+
+- **`ReservationMarkedNoShow`** (publicado pelo `endofday` pelo outbox desde a M6 E11, sem dado pessoal) **ganha o primeiro consumidor de produção: o `fnrh`** (`FnrhSubmissionListeners`, M6 E14), que só grava a `FnrhSubmission` `NO_SHOW` (idempotente pela chave `(reservation_id, operation, event_key)`, `event_key = no-show:v<version>`). Os `FnrhSubmissionListeners` passam de 8 para **9** métodos `@ApplicationModuleListener`.
+- O listener roda fora da transação do fechamento (outbox): a falha do Serpro nunca bloqueia o fechamento (RN-22). O envio sai no job `fnrh-submissions-send` (inalterado: 1 min, `lockAtMostFor = PT1H`).
+- O `InventoryListenersQuiescence` já espera pelos `FnrhSubmissionListeners`; nada mudou nele.
+- Com a E14, `ReservationMarkedNoShow` também deixa de estar sem consumidor (complementa a nota do curador da E08 sobre consumidores, em [[ZenyHotelManager - Estado por marco]], "M5 E08").
+
+*Nota do curador (conferência por `git` em 2026-11-15, só leitura, no `ad970fc`):* o `FnrhSubmissionListeners.kt` tem 9 métodos `@ApplicationModuleListener` (a captura dava o número como dedução).
+
 ---
 
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Eventos e jobs - 4e9ffb74]] (capture_id: 4e9ffb74-b604-4a12-835d-89cb104e68f7): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 564–577, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): padrão de integração (R8, ARCHITECTURE §12) e jobs previstos (§13), em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]] (capture_id: 8df87866-4285-4e24-8878-0fab70c9436c): primeiros consumidores dos eventos de reserva e hospedagem, job `fnrh-submissions-send` e regras "Envio assíncrono por pedido" e escrita em curso da ARCHITECTURE §12 (item 2 da captura).
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]] (capture_id: 65d0d4ff-bc24-4f40-94ba-c062bdf2b9c1): aprovação do padrão de envio assíncrono pelo usuário como referência para M7 e M8.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]] (capture_id: 6095f729-34e7-4667-9c48-d112262c6212): regra da ação `POST …/clear-credentials` na linha "Credencial" da ARCHITECTURE §12 (item 2 da captura, D-E16-7).
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (capture_id: 4dd12e66-191b-406d-a974-4ae7dca3e15f): job `printing-jobs-maintenance` do `printing` (item 4 da captura).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): job `end-of-day-trigger`, trava `end-of-day-run` e o risco do agendador para a E11 (item 4 da captura).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 (revisão humana) - fa5b192f]] (capture_id: fa5b192f-13a0-4e35-959a-3134613a24d8): risco do agendador resolvido pela decisão do usuário (gatilho só dispara o motor e volta).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): log das exceções dos jobs só pela classe, pelo tratador do agendador do `shared` (decisão da M6 E18, item 5 da captura).
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (capture_id: df23f14d-ec3c-4fa2-aa75-462913ddaf5e): gatilho do fechamento que só dispara o motor (`zeny.endofday.trigger.wait`) e evento `ReservationMarkedNoShow` (item 7 da captura).
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E14 - 998156dc]] (capture_id: 998156dc-c51d-47f2-ad9c-86f204f7236c): primeiro consumidor de produção de `ReservationMarkedNoShow` (o `fnrh`) e 9 listeners (item 3 da captura); nota do curador com o número conferido por `git`.

@@ -67,6 +67,22 @@ Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 2
   - A API HTTP de lançamentos não mudou.
 - **Nota obrigatória para o M6:** o fechamento usa a **mesma chave** do check-out, separa os inclusos da hospedagem e lança os inclusos sem taxa de serviço. A repetição é silenciosa: o lançamento existente volta mesmo se o valor pedido for outro, então confira o valor no M6.
 
+
+### Dependências do `billing` (auditoria da M5 E12, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (auditoria G12). Complementa a lista literal `["shared","hotel","guests","notifications","payments"]` acima.
+
+- `allowedDependencies` do `billing` em 2026-11-12: `shared`, `hotel`, `guests`, `notifications`, `payments` e `printing` (o `printing` desde a E11, só a `PrintingApi` e os tipos de documento, para o extrato em PDF e ESC/POS; `billing/BillingModule.kt:24`). Nunca `iam` nem reservas: o dono da conta é descrito pela porta `FolioOwnerDescriber`, que o dono implementa (ver [[ZenyHotelManager - Módulo billing (caixa, pagamentos, caução e encerramento)]]).
+
+### Lançamentos na data travada e chave do fechamento (M6 E11, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (itens 2, 4 e 6). A trava da data está em [[ZenyHotelManager - Módulos hotel e staff]] (`HotelApi.lockBusinessDate()`); o caixa, em [[ZenyHotelManager - Módulo billing (caixa, pagamentos, caução e encerramento)]] ("M6 E11").
+
+- `billing/application/BillingOperations.kt`: o `stamp()` de todo lançamento carimba a data lida por `lockBusinessDate()`; o encerramento de conta também trava a data.
+- Nenhum lançamento fica em data fechada; um lançamento depois do avanço cai na data nova, com o caminho concorrente testado.
+- **Nota obrigatória para o M6 (acima) cumprida na E11:** a etapa `room-charges` do fechamento usa as chaves `reservations.reservation:<id>:<noite>:room`, `…:<noite>:package:<packageId>` e `…:<noite>:tourism-fee` (e `…:<data>:no-show` para a multa), com `PostingSource.END_OF_DAY`; hospedagem e pacotes inclusos sem taxa de serviço (RN-11). O lançamento do check-out e o do fechamento na mesma data usam a mesma chave e não duplicam (testado com os dois caminhos reais). Regra das cobranças em [[ZenyHotelManager - Módulo reservations (inventário, disponibilidade e reservas)]] ("M6 E11"); etapas em [[ZenyHotelManager - Módulo endofday]].
+- Uma nota técnica da E11 propõe um sinal explícito de "criado ou existente" no `BillingApi.post`, o que muda o contrato do `billing`: ver "Notas técnicas deixadas pela E11" em [[ZenyHotelManager - Módulo endofday]].
+
 ---
 
 ## Proveniência
@@ -74,3 +90,5 @@ Origem: [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 2
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo billing - contas, roteamento e taxa de serviço - c6398a76]] (capture_id: c6398a76-eef1-4a2b-88bc-a7f9befa072c): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 286–317, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh E04 - 23ba6833]] (capture_id: 23ba6833-5674-4a22-aacd-3a26bf55f9bf): lançamento idempotente por `sourceReference` e a nota obrigatória para o M6.
 - 2026-10-23 — [[2026-10-23 - ZenyHotelManager - atualização m5-recepcao-fnrh integração E04 a E06 - b2046daa]] (capture_id: b2046daa-2cdb-4680-ae03-6f388769bca4): integração da E04 à `main` (`4a91340`).
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): dependências do `billing` em 2026-11-12 (G12), em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (capture_id: df23f14d-ec3c-4fa2-aa75-462913ddaf5e): `stamp()` na data travada, nenhum lançamento em data fechada, nota obrigatória para o M6 cumprida pelas chaves do fechamento e nota técnica do no-show repetido (itens 2, 4 e 6 da captura), na subseção "M6 E11".

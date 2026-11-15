@@ -25,12 +25,11 @@ Documentação, mensagens ao usuário e commits em pt-BR; código, API e banco e
 
 ## Estado
 
-- M0 a M4 concluídos, registro histórico (não se executam e seguem acusando erro de formato no verificador). M5 em andamento, 16 etapas: E01 a E07, E13, E14 e E15 concluídas (E15 em 2026-11-10, fechamento `1d72325`). Próxima: E08 (revisão humana: sim), depois E16 e E10; E09 `#bloqueada` (Q-12), depende de E08 e E16. Revisão humana de E13 e E07 pendente. M6 a M10 replanejados em 2026-11-06. Detalhes em [[ZenyHotelManager - Estado por marco]].
-- Conferido por `git` em 2026-11-10: a E15 está só na branch `roadmap/m5-recepcao-fnrh`, que já tem a **E08 `#em-andamento`** (Tasks 1 a 6 até `ad86e24`). `main` local em `ca9f9e2` (E14 e E07); `origin/main` em `15bbcdb` pela referência local (push do usuário).
-- Referência técnica no brain desde 2026-10-22 (decisão do usuário), ainda sem commit no repositório: `CLAUDE.md` enxuto e hook em `.claude/settings.json` (`SessionStart` e `SubagentStart`) com o `load-brain.py` da skill `development-roadmap`, que exige `BRAIN: carregado (ZenyHotelManager)`. Testado em sessão real e em subagente.
-- Roadmaps M5 a M10 no formato da skill `development-roadmap` com o superpowers, revistos em 2026-11-06 (`docs/superpowers/specs/2026-11-06-revisao-arquitetura-roadmaps-design.md`, ainda sem commit). Executam pelas souls do Second Brain: `claude --agent arquiteto` desenha e revê (spec, ARCHITECTURE, roadmaps), sem código nem plano; `claude --agent orquestrador` escreve o plano de cada etapa, submete-o ao `revisor-arquitetura` e executa: `desenvolvedor` → `testador` (por risco) → verificação mecânica → `revisor-seguranca` e captura pelo `brain-escriba`.
-- Dependências travadas por lockfiles em modo estrito (E13), conferidos pela CI, e 0 Critical/High no `osv-scanner` (E14): ver [[ZenyHotelManager - Ambiente, banco, chaves e build]] antes de mexer em dependências.
-- Git (decisão do usuário, 2026-11-06): a execução de roadmap roda na branch `roadmap/<slug>`; no fim do lote, com o gate verde, o orquestrador faz o merge local na `main` e deixa pronto o `git push origin main`. Push e deploy são sempre do usuário. Fora do roadmap, commit só a pedido.
+- M0 a M4 concluídos. M5 concluído em 2026-11-12 (gate E12, merge `ab8b406`), salvo a E09 `#bloqueada` (Q-12, cobrada no M8 E13). M6 (18 etapas): E10, E11 e E14 a E17 `#concluida`, demais `#pendente`. Detalhes em [[ZenyHotelManager - Estado por marco]].
+- Referência técnica no brain desde 2026-10-22 (decisão do usuário), carregada pelo hook `load-brain.py`, que exige `BRAIN: carregado (ZenyHotelManager)`.
+- Roadmaps M5 a M10 no formato da skill `development-roadmap`, executados com `claude --agent`: `arquiteto` desenha e revê, `orquestrador` planeja e executa.
+- Dependências: lockfiles estritos e `osv-scanner` sem Critical/High; leia [[ZenyHotelManager - Ambiente, banco, chaves e build]] antes de mexer nelas.
+- Git (decisão do usuário, 2026-11-06): roadmap na branch `roadmap/<slug>`; no fim do lote, com o gate verde, merge local na `main` pelo orquestrador. Push e deploy são sempre do usuário; fora do roadmap, commit só a pedido.
 
 ## Notas do projeto
 
@@ -65,26 +64,25 @@ Módulos:
 - [[ZenyHotelManager - Módulo reservations (inventário, disponibilidade e reservas)]]: inventário, calendário, cotação, criação.
 - [[ZenyHotelManager - Módulo reservations (ciclo de vida, alocação, grupos e busca)]]: alteração, cancelamento, garantia, alocação, grupos, busca.
 - [[ZenyHotelManager - Hospedagem e recepção]]: transições de hospedagem e `frontdesk` (check-in, walk-in, check-out, troca de UH, early, recados).
-- [[ZenyHotelManager - Módulo fnrh]]: FNRH/Serpro: configuração, porta e adaptador, falhas, saneador, validador. Leia antes das E08 e E09.
+- [[ZenyHotelManager - Módulo fnrh]]: FNRH/Serpro: configuração, porta e adaptador, falhas, saneador, validador, envio assíncrono (E08, padrão de M7 e M8), no-show (M6 E14). Leia antes da E09.
+- [[ZenyHotelManager - Módulo printing]]: agentes, impressoras, fila, token e documentos (E11). Leia antes de criar um documento.
+- [[ZenyHotelManager - Módulo endofday]]: fechamento do dia: motor, as 8 etapas (E11), pendências, gatilho.
 
 ## Atualização por capturas
 
-Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. No fechamento de cada etapa que muda algo descrito no brain, inclusive o estado, o orquestrador do lote publica em `00 Inbox/` a captura `ZenyHotelManager - atualização <slug> Eyy` (ex.: `atualização m5-recepcao-fnrh E04`) com o texto novo ou alterado, dizendo qual nota de tema ele afeta. Módulos novos (fnrh, printing, housekeeping, fiscal, pos etc.) ganham nota `ZenyHotelManager - Módulo <nome>`. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub.
+Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. No fechamento de cada etapa que muda algo descrito no brain, inclusive o estado, o orquestrador do lote publica em `00 Inbox/` a captura `ZenyHotelManager - atualização <slug> Eyy` com o texto novo ou alterado, dizendo qual nota de tema ele afeta. Módulos novos (housekeeping, fiscal, pos etc.) ganham nota `ZenyHotelManager - Módulo <nome>`. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub.
 
 ## Próximos passos
 
-- Commit das alterações no repositório (`CLAUDE.md`, `README.md`, `.claude/settings.json` e roadmaps) e das da revisão de 2026-11-06, a cargo do usuário.
-- Concluir a E08 e executar E16 e E10 do M5 pelo `claude --agent orquestrador`.
-- M6 começa pelas E10 e E11: fechamento com a chave do check-out (nota obrigatória em [[ZenyHotelManager - Módulo billing (contas, roteamento e taxa de serviço)]]).
-- Homologação da FNRH (M5 E09): fora do gate do M5, cobrada pelo gate de inauguração (M8 E13).
-- Sincronizar cada roadmap de M6 a M10 com o código antes do primeiro lote (regra 2 de `docs/roadmaps/README.md`); divergências já vistas estão nas "Notas para o plano".
+- Revisão humana da M6 E11 (usuário); M6 (`orquestrador`): E18, E01 e demais; `arquiteto`: manutenção do `fnrh` e pendências da E14 a E16 (Estado por marco).
+- Sincronizar M7 a M10 com o código antes do primeiro lote de cada um (regra 2 de `docs/roadmaps/README.md`; divergências nas "Notas para o plano").
 
 ## Perguntas abertas
 
 - O comando do hook (`python3` e shell POSIX) ainda não foi testado no Windows.
-- Sem confirmação do usuário, decididas pela opção recomendada: lotes M5 E04 a E06 (lista em [[ZenyHotelManager - Hospedagem e recepção]]), E13 (a–f), E14 (a–c), E07 ((a) a (d), (f), (g), (h), (j)) e E15 ((a) a (h); destaques: o Financeiro lê a descrição de gênero, eco curto não mascarado, lacuna de leitura nas escritas do `guests`), mais a revisão humana de E13 e E07, que o gate M8 E13 exige. Lista em [[ZenyHotelManager - Estado por marco]]. O risco aceito do `opentelemetry-api` 1.62.0 tem etapa dona, a M8 E17.
-- Decisões do arquiteto R7 a R13 e R16: revisáveis, não passaram pela entrevista.
+- Sem confirmação do usuário (opção recomendada): decisões dos lotes do M5 e do M6, H10 e H13 do `arquiteto` e revisão humana de E13 e E07 do M5 (lista em [[ZenyHotelManager - Estado por marco]]). Risco aceito do `opentelemetry-api` 1.62.0: M8 E17. R7 a R13 e R16 do arquiteto: revisáveis.
 - Dividir o M8 (18 etapas) em dois arquivos: oferecido, não aplicado.
+- PF-01 do front desktop (setores para recados): pedido aberto; ver [[ZenyHotelManager - Hospedagem e recepção]].
 - Q-07 (retenção) no padrão da SPEC até confirmação; fornecedores e hospedagem (Q-05, Q-06, Q-02, Q-03, Q-13) seguem do usuário, com as etapas afetadas `#bloqueada`.
 
 ## Conhecimento relacionado
@@ -104,3 +102,24 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - 2026-11-09 — [[2026-11-05 - ZenyHotelManager - atualização m5-recepcao-fnrh E07 - 9f02405c]] (capture_id: 9f02405c-a73b-44f0-8f8c-5fb75860aa05): Estado do M5 após a E07, índice do módulo `fnrh` e decisões do lote.
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): Estado, Git, Próximos passos e Perguntas abertas após a revisão dos roadmaps.
 - 2026-11-10 — [[2026-11-10 - ZenyHotelManager - atualização m5-recepcao-fnrh E15 - a22890e7]] (capture_id: a22890e7-e6b1-4e99-97d7-747bfcdd5788): Estado do M5 após a E15, Próximos passos e decisões do lote (Perguntas abertas); conferência por `git` do curador.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]] (capture_id: 8df87866-4285-4e24-8878-0fab70c9436c): Estado, Próximos passos e decisões do lote E08.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 (revisão humana) - 65d0d4ff]] (capture_id: 65d0d4ff-bc24-4f40-94ba-c062bdf2b9c1): revisão humana da E08 feita e E15 (h) decidida pelo usuário.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E16 - 6095f729]] (capture_id: 6095f729-34e7-4667-9c48-d112262c6212): Estado e decisões da E16.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 - 4dd12e66]] (capture_id: 4dd12e66-191b-406d-a974-4ae7dca3e15f): Estado, Próximos passos, decisões do lote E10 e índice do `printing`.
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E10 (revisão humana) - 25b5cce4]] (capture_id: 25b5cce4-a919-4cf3-aaaf-99b5722239e8): revisão humana da E10 e merge.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E11 - d1100f5a]] (capture_id: d1100f5a-58df-416a-b523-1db1d3eb3f19): Estado e Próximos passos após a E11.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E11 (revisão humana) - cca61b94]] (capture_id: cca61b94-000c-4d38-9f81-59e12c1d9f99): revisão humana da E11 e merge.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): gate E12 do M5.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 (revisão humana) - 64ce6698]] (capture_id: 64ce6698-9d2c-4a1c-b4d0-af930d24bff5): decisões (e) e (f) da E12.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]] (capture_id: 3a747cdc-6309-4bfa-bea2-3f6cd483a30f): M6 sincronizado.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): M6 E10 e índice do `endofday`.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 (revisão humana) - fa5b192f]] (capture_id: fa5b192f-13a0-4e35-959a-3134613a24d8): revisão humana da E10 (H12) e merge.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): E18 do M6 (H13).
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (capture_id: df23f14d-ec3c-4fa2-aa75-462913ddaf5e): M6 E11.
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E14 - 998156dc]] (capture_id: 998156dc-c51d-47f2-ad9c-86f204f7236c): M6 E14.
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (capture_id: c139da21-4f16-40bc-8cae-9ee2dc4444c3): M6 E15.
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E16 - f7e211bd]] (capture_id: f7e211bd-3d35-495d-87c3-33a791c87e48): M6 E16.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]] (capture_id: cb3979d0-82db-4bb4-bf98-0a7b8630e398): M6 E17.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 (revisão humana) - 4ab01eb7]] (capture_id: 4ab01eb7-f60b-483f-8ae1-66de5753d21c): revisão humana da E17.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização arquitetura §7 resposta que varia com a permissão - 77927cd7]] (capture_id: 77927cd7-51b9-4718-b108-048c262be5c7): `oneOf` na §7.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - pedido do front PF-01 Setores dos recados legíveis com frontdesk.traces.manage - 324e0e8f]] (capture_id: 324e0e8f-f656-496a-b6a8-446fe491e384): PF-01.

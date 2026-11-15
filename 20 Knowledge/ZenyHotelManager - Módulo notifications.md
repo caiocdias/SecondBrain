@@ -6,6 +6,7 @@ projects:
   - "[[ZenyHotelManager]]"
 sources:
   - "[[2026-10-22 - ZenyHotelManager - Módulo notifications - 29724dad]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]]"
 ---
 # ZenyHotelManager - Módulo notifications
 
@@ -26,8 +27,28 @@ Texto literal do `CLAUDE.md` do repositório, linhas 250–259, no commit `a6c0f
   - **FCM HTTP v1** (`infrastructure/FcmPushGateway.kt`, H7, decidida pelo usuário em 2026-10-16; cliente próprio com `RestClient` e o Nimbus, sem dependência nova): `zeny.notifications.push.fcm.credentials` = `ZENY_FCM_CREDENTIALS`, o JSON da conta de serviço em base64 (`project_id`, `client_email`, `private_key` PKCS#8, `private_key_id`, `token_uri`); vazia, o adaptador fica desligado (`enabled` falso) e nada vai ao outbox; ilegível, o boot falha sem mostrar a chave. O access token sai do grant `jwt-bearer` (JWT RS256 assinado pela conta de serviço, escopo `firebase.messaging`, `aud` = `token_uri`) e fica em cache até 1 min antes de vencer (401 no envio o descarta). A mensagem vai a `POST {endpoint}/v1/projects/{project_id}/messages:send` com `notification {title, body}`, `data {type, notificationId}` e `android.priority HIGH`. Erros (`FcmErrors`): `UNREGISTERED`, `SENDER_ID_MISMATCH` e `INVALID_ARGUMENT` → token inválido; o resto (`UNAVAILABLE`, `INTERNAL`, `QUOTA_EXCEEDED`, `THIRD_PARTY_AUTH_ERROR`, `PERMISSION_DENIED`, resposta sem JSON, falha de rede) → temporário. `endpoint` (`https://fcm.googleapis.com`), `connect-timeout` (5 s) e `read-timeout` (10 s) configuráveis. O projeto Firebase do hotel ainda não existe: a primeira entrega real fica para quando houver (pendência operacional).
   - **Testes:** `NotificationsApiTest` (painel só do destinatário, leitura, cursor, rollback, recusas do `notify`, auditoria sem o texto, destinatários por permissão exatos com a permissão só de teste de `src/test/kotlin/notificationsexample/`, sessões ativas da `IamApi`, preferências e obrigatórios, dispositivos e o token cifrado), `NotificationsPushTest` (com o FCM no WireMock, `FcmTestServer`: envio com o token OAuth e o JWT conferidos, cache do token, token não registrado, erro temporário reenviado pelo job do outbox com o `MutableClock` sem reenviar a quem já recebeu, sessão revogada, preferência de push desligada, falha de rede e 403 sem desfazer quem notificou), `NotificationsPushDisabledTest` (contexto padrão, sem credencial: nada vai ao outbox), `NotificationsDomainTest` (catálogo, preferências, conta de serviço e classificação dos erros) e o tópico pessoal no `RealtimeStreamTest`. As duas primeiras compartilham o contexto (`NotificationsTestConfiguration`: o adaptador do FCM apontado para o WireMock num bean `@Primary` de `PushGateway`, a permissão e o tipo de exemplo); a conta de serviço de teste é gerada na JVM (nenhuma credencial no repositório). WireMock (`wiremock-standalone`, versão no catálogo) é dependência só de teste.
 
+
+## Atualizações por capturas
+
+Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
+
+### Primeiro disparo de `integration-failure` (M5 E08; auditoria da M5 E12, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (auditoria G10).
+
+- **Primeiro disparo de `integration-failure` (M5 E08):** `FnrhSubmissionRecorder` chama `NotificationsApi.notify(INTEGRATION_FAILURE, "Falha no envio à FNRH", "Reserva <código>: <operação> — <falhou | dados inválidos>", NotificationRecipients.withPermission(fnrh.submissions.manage))` depois do commit, em transação própria; só o código da reserva e rótulos fixos entram no texto (`fnrh/application/FnrhSubmissionRecorder.kt:127`). O `fnrh` passa a depender do `notifications` (`FnrhModule.kt:18`). O `printing` **não** depende do `notifications`: sem alerta de falha de impressão (decisão (d) do usuário na revisão humana da E10).
+- Envio à FNRH em [[ZenyHotelManager - Módulo fnrh]]; impressão em [[ZenyHotelManager - Módulo printing]].
+
+### Aviso de pendência do fechamento do dia (M6 E10, 2026-11-13)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (item 5).
+
+- Primeiro uso de produção do tipo `notifications.end-of-day-pending` (obrigatório no painel), pelo `EndOfDayIssues` do `endofday`, para quem tem `endofday.runs.read`; a chamada e o texto estão em [[ZenyHotelManager - Módulo endofday]] ("Pendências").
+
 ---
 
 ## Proveniência
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Módulo notifications - 29724dad]] (capture_id: 29724dad-1187-4a9a-8781-f2652c064c0d): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 250–259, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): primeiro disparo de `integration-failure` pelo `fnrh` e o `printing` sem aresta para o `notifications` (G10), em "Atualizações por capturas" (seção criada).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): primeiro uso de produção do tipo `notifications.end-of-day-pending` (item 5 da captura).

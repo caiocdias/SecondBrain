@@ -77,7 +77,7 @@ Origem: [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7
 
 Origem: [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]. Complementa o parágrafo do travamento.
 
-- **Spring Boot 4.1.2** (plugin e BOM, no catálogo `gradle/libs.versions.toml`). Arrasta Tomcat 11.0.27, Jackson 3.1.7, Spring Framework 7.0.10, Spring Security 7.1.2, Hibernate 7.4.13, Micrometer 1.17.2, PostgreSQL JDBC 42.7.14 e, no classpath dos plugins, httpclient5 5.6.5. Os lockfiles continuam com 415 e 74 pacotes.
+- **Spring Boot 4.1.2** (plugin e BOM, no catálogo `gradle/libs.versions.toml`). Arrasta Tomcat 11.0.27, Jackson 3.1.7, Spring Framework 7.0.10, Spring Security 7.1.2, Hibernate 7.4.13, Micrometer 1.17.2, PostgreSQL JDBC 42.7.14 e, no classpath dos plugins, httpclient5 5.6.5. Desde a E11, `gradle.lockfile` tem 426 pacotes (eram 415) e `buildscript-gradle.lockfile`, 74 (auditoria G8 da M5 E12, [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]], que substitui "Os lockfiles continuam com 415 e 74 pacotes"). A E11 acrescentou `io.github.openhtmltopdf:openhtmltopdf-core` e `-pdfbox` 1.1.110, `org.apache.pdfbox:pdfbox`, `fontbox`, `pdfbox-io` e `xmpbox` 3.0.8, `de.rototor.pdfbox:graphics2d` 3.0.1, `org.thymeleaf:thymeleaf` e `thymeleaf-spring6` 3.1.5, `org.attoparser:attoparser` 2.0.7, `org.unbescape:unbescape` 1.1.6 e subiu `commons-logging` de 1.3.6 para 1.4.0 (commit `8241810`). Declarações diretas no catálogo: `thymeleaf-spring6` (versão do BOM do Boot), `openhtmltopdf-pdfbox` e, só em teste, `pdfbox`. O openhtmltopdf é **LGPL-2.1+** (D-E11-1): registrar o aviso na documentação de implantação do M8. Propriedades novas, todas com padrão em `application.yaml` e sem variável de ambiente: `zeny.fnrh.submissions.*` e `zeny.printing.*`.
 - **Inventário das duas restrições de versão** (cada uma traz no catálogo o motivo, os GHSA e a condição de saída):
 
 | Restrição | Por quê | Sai quando |
@@ -111,6 +111,15 @@ A ARCHITECTURE §8.3 lista os valores sem job de forma mais curta que a M8 E15 (
 
 *Nota do curador:* as referências "E11" da dívida das migrações e do passo 3 das chaves, no texto literal acima, foram trocadas por E14 e E15, como a captura indica.
 
+### Supply chain na M6 E17 (2026-11-15)
+
+Origem: [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]] (item 5; resumo do agente a partir do handoff da E17). Complementa os resíduos da M5 E14 e o scanner, acima.
+
+- `io.opentelemetry:opentelemetry-api` **1.62.0** está no `productionRuntimeClasspath` com o **GHSA-ccrj-gw8r-854m** (DoS por regex no `W3CTraceContextPropagator` lendo `tracestate`), corrigido na **1.67.0**. Recomendação do handoff: subir numa **etapa de manutenção**, ou limitar o `tracestate` no proxy. Fora da E17; lockfiles e catálogo não mudaram nela.
+- O **osv-scanner 2.7.0 não tem extrator para `settings-gradle.lockfile`** (que só tem `empty=…`): use `-L` nos outros dois (`gradle.lockfile`, 426 pacotes, e `buildscript-gradle.lockfile`, 74). Resultado na E17: 0 Critical/High, 2 Medium e 3 Low, todos pré-existentes. Substitui a instrução de rodar com `-L` nos "três lockfiles".
+
+*Nota do curador:* o risco do `opentelemetry-api` já tem etapa dona, a M8 E17 (R10, tabela "Pendências do M8" acima), e consta como risco aceito no hub; a recomendação de uma etapa de manutenção antes disso é do handoff da E17, não decisão do usuário nem do `arquiteto`. As menções a "`-L` nos três lockfiles" em [[ZenyHotelManager - Estado por marco]] relatam os gates da M6 E11, E14, E15 e E16 e foram mantidas como registro.
+
 ---
 
 ## Proveniência
@@ -119,3 +128,5 @@ A ARCHITECTURE §8.3 lista os valores sem job de forma mais curta que a M8 E15 (
 - 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): travamento de dependências do Gradle (lockfiles, modo estrito, limitação do rebaixamento, scanner), em "Atualizações por capturas"; a lista de vulnerabilidades da captura não foi copiada por estar substituída pela E14.
 - 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): Spring Boot 4.1.2, inventário das restrições de versão e vulnerabilidades residuais, em "Atualizações por capturas".
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): referências E11 trocadas por E14 e E15 no texto; donos e critérios das pendências do M8, em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): contagem dos lockfiles substituída e dependências da E11, LGPL e propriedades novas (G8), na seção do Spring Boot 4.1.2.
+- 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]] (capture_id: cb3979d0-82db-4bb4-bf98-0a7b8630e398): `opentelemetry-api` 1.62.0 no runtime e osv-scanner sem extrator para `settings-gradle.lockfile` (item 5 da captura), na subseção "Supply chain na M6 E17".

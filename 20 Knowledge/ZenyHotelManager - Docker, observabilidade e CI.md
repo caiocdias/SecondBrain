@@ -9,6 +9,9 @@ sources:
   - "[[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]]"
   - "[[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]]"
   - "[[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]]"
+  - "[[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]]"
+  - "[[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]]"
 ---
 # ZenyHotelManager - Docker, observabilidade e CI
 
@@ -30,7 +33,7 @@ Texto literal do `CLAUDE.md` do repositório, linhas 540–563, no commit `a6c0f
 - Actuator: só `GET /actuator/health/liveness`, `/actuator/health/readiness` e `/actuator/prometheus` existem na web, abertos sem autenticação e sem detalhes (`{"status":"UP"}`). Os demais endpoints nem são criados (`management.endpoints.access.default: none`), e o `/actuator/health` agregado e qualquer outro caminho caem no `denyAll`. A readiness inclui o banco (`db`); a liveness, não. `ActuatorExposureTest` barra endpoint novo exposto: abrir outro exige mudar `application.yaml`, a `SecurityConfiguration` e o teste.
 - Logs: no `prod`, JSON ECS numa linha por evento (`logging.structured.format.console: ecs`), com `traceId`/`spanId` e, nas requisições autenticadas, `userId` e `deviceSessionId` do MDC (`ActorMdcFilter`, só os ids, nunca login ou token); no `local`, texto legível com os mesmos campos no padrão de correlação (`logging.pattern.correlation`). O tracing é a ponte OpenTelemetry do Micrometer, sem exportador (aceita e propaga `traceparent` W3C).
 - Valores do banco fora do log (M1 E03, corrigido no gate E09): numa violação de restrição, o PostgreSQL manda no DETAIL os valores da linha ("Key (login)=(…) already exists"). Por isso o driver conecta com `logServerErrorDetail=false` (`spring.datasource.hikari.data-source-properties`; a mensagem da exceção fica sem o DETAIL, e `serverErrorMessage.constraint` continua legível), o logger `org.hibernate.orm.jdbc.error` fica em `ERROR` (ele registraria em WARN cada `SQLException`) e o `db` do compose sobe com `log_error_verbosity=terse` e `log_min_error_statement=panic` (sem DETAIL nem o STATEMENT com os parâmetros). `UserManagementTest` e `RoleManagementTest` conferem que o login e o nome da role repetidos não aparecem na saída nem, numa violação forçada por SQL, na mensagem de nenhuma exceção da cadeia (e que a constraint continua legível).
-- Métricas: Micrometer no formato Prometheus, com a tag `application`. Técnicas (JVM, HTTP, Hikari) vêm do Boot. `OutboxMetrics` publica `zeny_outbox_publications{state="pending|failed|abandoned"}` e `zeny_outbox_publications_oldest_age_seconds{state=…}` (`failed` = ainda no reenvio automático; `abandoned` = fora dele, à espera do reenvio manual; M2 E12), recalculadas a cada `zeny.events.metrics.refresh-interval` (30 s; `NaN` se o banco não responder). `RealtimeMetrics` publica `zeny_realtime_connections` (conexões abertas no canal de tempo real). `GuestDocumentRekeyJob` publica `zeny_guests_documents_rekey_pending` (documentos de hóspede ainda numa chave que não é a ativa, medido no fim de cada execução; `NaN` antes da primeira). Regras de alerta em `docker/prometheus/alerts.yaml` (confira com `promtool check rules`). Métrica nova de módulo: um `MeterBinder` em `infrastructure`, nome `zeny.<módulo>.<coisa>`.
+- Métricas: Micrometer no formato Prometheus, com a tag `application`. Técnicas (JVM, HTTP, Hikari) vêm do Boot. `OutboxMetrics` publica `zeny_outbox_publications{state="pending|failed|abandoned"}` e `zeny_outbox_publications_oldest_age_seconds{state=…}` (`failed` = ainda no reenvio automático; `abandoned` = fora dele, à espera do reenvio manual; M2 E12), recalculadas a cada `zeny.events.metrics.refresh-interval` (30 s; `NaN` se o banco não responder). `RealtimeMetrics` publica `zeny_realtime_connections` (conexões abertas no canal de tempo real). `GuestDocumentRekeyJob` publica `zeny_guests_documents_rekey_pending` (documentos de hóspede ainda numa chave que não é a ativa, medido no fim de cada execução; `NaN` antes da primeira). `FnrhSubmissionMetrics` (`fnrh`, M5 E08, um `MeterBinder` à parte do `FnrhMetrics` da E07) publica o gauge `zeny_fnrh_submissions{status="pending|failed|invalid"}`: quantas submissões à FNRH estão em cada situação que pede atenção, lido do banco (`countByStatus`, um `GROUP BY`) a cada raspagem. Uma leitura que falha dá `NaN`, com log só da classe da exceção, e não derruba a raspagem. Testado em `FnrhSubmissionMetricsTest`. As métricas `zeny_fnrh_*` da E07 estão em [[ZenyHotelManager - Módulo fnrh]]. Nenhuma regra de alerta nova em `docker/prometheus/alerts.yaml` na E08 (acréscimo da captura [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]], branch `roadmap/m5-recepcao-fnrh`). Regras de alerta em `docker/prometheus/alerts.yaml` (confira com `promtool check rules`). Métrica nova de módulo: um `MeterBinder` em `infrastructure`, nome `zeny.<módulo>.<coisa>`. Lista consolidada das métricas do M5 em "Métricas do M5", em "Atualizações por capturas".
 - Nos testes, `@IntegrationTest` liga as métricas (`@AutoConfigureMetrics`), então o `/actuator/prometheus` responde como em produção.
 
 **CI** (`.github/workflows/ci.yml`, GitHub Actions; ARCHITECTURE §7 e §17, RNF-03). Roda em push na `main` e em todo pull request, com três jobs em paralelo e sem nenhum passo que ignore falha:
@@ -83,6 +86,46 @@ Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura 
 - M8 E11: `idle_in_transaction_session_timeout` definido e logs de acesso sem query string, com teste; um alerta de teste chega ao destino real.
 - "Health" na ARCHITECTURE §16: liveness e readiness, com a saúde de cada integração por endpoint de status e métricas, sem `HealthIndicator`. Coerente com o que esta nota já descreve do actuator.
 
+
+### Métricas do M5 (M5 E12, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (auditoria G7, que consolida os trechos soltos das capturas).
+
+- Métricas do M5 em `/actuator/prometheus` (todas por `MeterBinder`, nenhuma com regra de alerta em `docker/prometheus/alerts.yaml`): `zeny_fnrh_calls_total` (tags `operation`, `outcome`, `environment`), `zeny_fnrh_last_success_seconds`, `zeny_fnrh_last_failure_seconds` (`NaN` sem registro), `zeny_fnrh_configured` (0 ou 1) (E07, `fnrh/infrastructure/FnrhMetrics.kt:60-63`); `zeny_fnrh_submissions{status="pending|failed|invalid"}` (E08, `FnrhMetrics.kt:98`, `GROUP BY` a cada raspagem, `NaN` se a leitura falha); `zeny_printing_jobs{status="PENDING|SENT|FAILED"}` (E10, `printing/infrastructure/PrintingMetrics.kt:50`; `FAILED` só dos terminados dentro de `content-retention`). Sem `HealthIndicator` da FNRH nem do `printing`: a readiness não depende deles.
+- *Nota do curador (conferência no repositório em 2026-11-15, só leitura, base `3a9542c`):* o `FnrhSubmissionMetrics` citado no item "Métricas" acima é declarado no mesmo arquivo `fnrh/infrastructure/FnrhMetrics.kt`, junto do `FnrhMetrics`.
+
+### Compose isolado do gate (M5 E12, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]], item 3. **Compose isolado do gate**, versionado em `docker/gate/` (decisão R1 da E12, sem confirmação do usuário; antes ficava no scratchpad). Para o gate do M6, é o modelo. Detalhes exatos em `docker/gate/README.md`.
+
+- `run-gate.sh <workdir> <porta> [projeto]`: o ciclo completo. Gera o env sorteado pelo `gate-env.sh` (modo 600, nunca dentro do repositório nem sob um `.git`, nunca lê o `docker/.env`), confere a composição (`config -q`, nunca sem `-q`, que imprimiria segredos), sobe com `up -d --build`, espera o readiness (até 300 s), roda o `m5-roteiro.sh` e sempre faz `down -v --remove-orphans` por `trap` (também em falha e Ctrl+C), apagando o `gate.env` e contando as sobras do projeto. Recusa (saída 2) o projeto `zeny` (o do usuário), nome de projeto inválido e um projeto que já tenha contêiner, volume ou rede.
+- `compose.gate.yaml`: `name: zeny-gate`, imagem `zeny-hotel-manager:gate` (nunca a `:dev`) e um WireMock da FNRH (`wiremock/wiremock:3.13.2` fixado por digest, sem porta publicada, só alcançável na rede do projeto) para onde apontam as URLs de homologação **e** de produção da FNRH (`ZENY_FNRH_HOMOLOGATIONURL` e `ZENY_FNRH_PRODUCTIONURL`). Logo, o gate nunca chama o Serpro real, em nenhum ambiente. Stubs da API v2.4 em `docker/gate/fnrh-mock/mappings/*.json`, com os mesmos contratos do `FnrhTestServer`.
+- `m5-roteiro.sh <base-url> <projeto> <env-file>`: roteiro `curl`/`jq` pelo proxy, 13 seções (públicos, usuários, cadastro, check-in, FNRH, ficha pelo agente, estadia, check-out, walk-in e desfazer, recados, Serpro fora do ar, E16 e varredura), **302 conferências no M5**. A varredura de segredos e de dados de hóspede cobre os logs de `api`, `db`, `proxy`, `storage` e `storage-init` e a própria saída do roteiro (o `fnrh-mock` fica de fora: faz o papel do Serpro e recebe os dados por desenho). Segredos só em variáveis e arquivos temporários (modo 600), nunca em argumentos nem na saída; falhas redigem esperado e obtido.
+- **O roteiro só roda num banco novo** (troca a senha do admin inicial): `up -d --build` depois de `down -v`, readiness `UP`.
+- Antes do `up --build` (compila dentro do Docker): rode um build pesado por vez; confira `free -g` e que não há Gradle nem `docker build` de outra sessão; **nunca rode `./gradlew --stop`** (ver [[ZenyHotelManager - Testes de integração]]).
+- Os 39 `WARN` do PDFBox ("Using fallback font", D-E11-4) no log da `api` são esperados e não são vazamento.
+- *Nota do curador (roadmap, commit `b23958e`, só leitura):* a decisão E12 (d) do roadmap fala em 41 WARN do `api` em `prod`: os 39 do PDFBox e 2 da queda simulada da FNRH, todos aceitos. O handoff da E12 lista como Menores do gate, sem efeito no produto: `run-gate.sh` não propaga falha do `docker ps` em `leftovers`; a varredura não acharia a descrição de gênero se o encoder escapasse não-ASCII; dois gates no mesmo workdir sobrescrevem o `gate.env`; templating sem escape JSON no mock.
+
+### Métricas e alertas do fechamento do dia (M6 E10, 2026-11-13)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (item 5, que remete às métricas e regras da seção 2 dela). Texto completo em [[ZenyHotelManager - Módulo endofday]] ("Métricas e alertas").
+
+- Métricas `zeny.endofday.run.duration` (Timer), `zeny.endofday.run.failures` (Counter), `zeny.endofday.runs.failed` e `zeny.endofday.overdue.seconds` (gauges).
+- Grupo novo `zeny-end-of-day` em `docker/prometheus/alerts.yaml`: `ZenyEndOfDayFailed`, `ZenyEndOfDayNotRun` (> 3600 s), `ZenyEndOfDayMetricsUnavailable` (`promtool`: 8 regras OK). A entrega dos alertas é da M8 E18.
+
+### Log das exceções dos jobs (decisão da M6 E18, 2026-11-13; ainda não implementada)
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 5). A regra (só a classe da exceção e das causas, sem a mensagem, pelo tratador do agendador do `shared`) está em [[ZenyHotelManager - Eventos e jobs]].
+
+*Nota do curador (conferência no repositório em 2026-11-15, só leitura, no merge `01c6f0e`):* `docker/prometheus/alerts.yaml` tem o grupo `zeny-end-of-day` com as três regras.
+
+### Chave de MDC com raiz reservada do ECS (risco, M6 E16, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E16 - f7e211bd]] (item 2). **Interpretação do agente a partir do handoff**, ainda sem teste de produção; achado do testador, não reproduzido pela captura.
+
+- Em `prod`, uma chave de MDC chamada `service` ou `process` (ou com esses prefixos e ponto) **faz o escritor ECS do Spring Boot falhar, e a linha de log some**. As chaves de hoje (`userId`, `deviceSessionId`, `traceId`, `spanId`) não colidem.
+- Recomendação do handoff, para o `arquiteto`: registrar a regra "**chave de MDC nunca usa raiz reservada do ECS**" e, numa etapa que possa mexer em `src/main`, um teste que suba o log `prod` com cada constante de MDC. Pendência registrada em [[ZenyHotelManager - Estado por marco]] ("M6 E16"). O tratamento da linha ECS nos testes (`messagesOf`) está em [[ZenyHotelManager - Testes de integração]] ("M6 E16").
+
 ---
 
 ## Proveniência
@@ -91,3 +134,8 @@ Origem: [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura 
 - 2026-11-04 — [[2026-10-28 - ZenyHotelManager - atualização m5-recepcao-fnrh E13 - 7a6ce25a]] (capture_id: 7a6ce25a-b05d-40ab-88c0-e459a9c329ca): lockfiles no `.dockerignore` e no `Dockerfile`, em "Atualizações por capturas".
 - 2026-11-04 — [[2026-11-04 - ZenyHotelManager - atualização m5-recepcao-fnrh E14 - f8103233]] (capture_id: f8103233-d5b2-48b1-b302-c9360ff5b66b): passo "Lockfiles em dia com o catálogo" da CI, em "Atualizações por capturas".
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): donos e critérios das pendências do M8 (E10, E11, E14, E17 e E18), em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-11 - ZenyHotelManager - atualização m5-recepcao-fnrh E08 - 8df87866]] (capture_id: 8df87866-4285-4e24-8878-0fab70c9436c): gauge `zeny_fnrh_submissions{status}` do `FnrhSubmissionMetrics` acrescentado ao item "Métricas" do texto literal (item 5 da captura).
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 - 2c135bbf]] (capture_id: 2c135bbf-8248-4987-a617-dcb3fa94c0a5): métricas do M5 consolidadas (G7) e compose isolado do gate em `docker/gate/` (item 3), em "Atualizações por capturas", com remissão no item "Métricas"; notas do curador conferidas no repositório e no roadmap.
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E10 - 1e4f709b]] (capture_id: 1e4f709b-7bbd-4c39-9725-1926aef1ca98): métricas e regras de alerta do fechamento do dia (item 5 da captura).
+- 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): remissão ao log das exceções dos jobs (item 5 da captura).
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E16 - f7e211bd]] (capture_id: f7e211bd-3d35-495d-87c3-33a791c87e48): risco da chave de MDC `service`/`process` no log ECS de `prod` e recomendação para o `arquiteto` (item 2 da captura).

@@ -41,7 +41,7 @@ com/zeny/hotel/<módulo>/
   - `domain` não depende de Spring; `web` só fala com `application`.
 - **Dependências entre módulos seguem a regra por camadas** (ARCHITECTURE §3.1 e §3.2).
   - Um módulo pode depender de qualquer módulo de camada inferior e de qualquer módulo da Plataforma, desde que sem ciclo. Ao criar uma dependência nova, acrescente-a à tabela da §3.1 na mesma mudança.
-  - Para reagir a algo de uma camada acima, inverta a dependência com um evento ou com uma porta definida no módulo de baixo.
+  - Para reagir a algo de uma camada acima, inverta a dependência com um evento ou com uma porta definida no módulo de baixo. Exemplos de porta: "Portas invertidas (M6 E15)", em "Atualizações por capturas".
   - `notifications` e `printing` nunca escutam eventos de módulos de negócio: quem gera o aviso, ou é dono do documento, chama esses módulos.
 - **Fluxo de escrita** (ARCHITECTURE §5):
   1. O controller converte o DTO em comando.
@@ -84,7 +84,29 @@ Linhas novas da tabela de decisões (§2):
 > | D19 | Alertas | **Prometheus e Alertmanager** no compose, sem porta pública, com destino de entrega configurável (usuário, 2026-11-06) | As regras já existem, e o caminho é o mesmo em nuvem ou no hotel; o monitor externo do host fica no checklist de inauguração | Monitor externo gerenciado (fornecedor novo e, no hotel, endpoint exposto); decidir só com a Q-06 (alertas sem destinatário até lá) |
 
 - D18 e D19 são **decisões do usuário** (R14 e R15). Ambas ainda são desenho: a D18 entra na M8 E04 e a D19, na M8 E18.
-- A regra por camadas da §3.1 ganhou uma frase, sem decisão R própria na spec. Citação literal: "as arestas de mesma camada já na tabela (como `billing` → `payments`, `reservations` → `rates` e `endofday` → `reporting`) são exceções registradas, e uma nova exige decisão." Complementa o item "Dependências entre módulos seguem a regra por camadas" acima.
+- A regra por camadas da §3.1 ganhou uma frase, sem decisão R própria na spec. Citação literal: "as arestas de mesma camada já na tabela (como `billing` → `payments`, `reservations` → `rates` e `endofday` → `reporting`) são exceções registradas, e uma nova exige decisão." Complementa o item "Dependências entre módulos seguem a regra por camadas" acima. Desde 2026-11-12, `reservations` → `rates` deixou de ser exceção (ver "Ordem interna da camada Hospedagem" abaixo).
+
+
+### Ordem interna da camada Hospedagem (decisão do usuário, 2026-11-12)
+
+Origem: [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 (revisão humana) - 64ce6698]] (decisão do usuário na entrevista do fim do lote da M5 E12, "Decisões do lote E12" (e) do roadmap do M5) e [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]] (aplicação na ARCHITECTURE pelo `arquiteto`, commit `0e58cf9`), que vale sobre ela.
+
+- **Ordem interna da camada Hospedagem** (ARCHITECTURE §3.1 "Regra por camadas" e §3.2): `rates` < `reservations` < `frontdesk`. Um módulo da camada pode depender de quem vem antes dele na ordem, nunca de quem vem depois. As arestas `reservations` → `rates`, `frontdesk` → `reservations` e `frontdesk` → `rates` deixaram de ser "exceções registradas". O alcance de `frontdesk` → `rates` continua só os tipos públicos que a `ReservationsApi` usa (`RatePlanId`, `GuaranteeType`, `PackageId`, `PackageCharge`), porque preço e política chegam congelados na reserva, e ampliá-lo exige decisão. As exceções de mesma camada que continuam são `billing` → `payments` e `endofday` → `reporting`. O diagrama da §3.2 mostra a ordem dentro da Hospedagem. Edição só de documento, sem mudança de código; o `ModularityTest` continua exato.
+- Conferido no código (`allowedDependencies`): `rates` = shared, rooms, billing, hotel; `reservations` = shared, hotel, rooms, rates, guests, billing, notifications, printing; `frontdesk` = shared, hotel, reservations, rooms, guests, billing, files, rates, staff, printing. Nenhuma aresta contrária à ordem e nenhum ciclo; o `ModularityTest` não mudou.
+- **Aresta prevista, ainda não no código** (*atualização:* implementada pela M6 E15 em 2026-11-14, ver "Portas invertidas (M6 E15)" abaixo)**:** `fnrh` → `frontdesk`, só pela porta dos rótulos da ficha (M6 E15). Segue a regra por camadas, porque a "Integração governamental" fica acima da Hospedagem. Quando a E15 rodar, entra na tabela §3.1 e no teste do `fnrh`, cujo comentário "nunca frontdesk" muda. O `frontdesk` continua sem importar o `fnrh`.
+- Nota de leitura: a tabela §3.1 ainda lista `hotel` entre as dependências do `fnrh`, e o código não usa (o código é subconjunto da tabela; não foi alterado).
+- O diagrama Mermaid da §3.2 não foi renderizado para conferência (limitação registrada na captura).
+
+### Portas invertidas (M6 E15, 2026-11-14)
+
+Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (item 3). Complementa "Arquitetura em uma página", no item "Dependências entre módulos seguem a regra por camadas", na frase "Para reagir a algo de uma camada acima, inverta a dependência com um evento ou com uma porta definida no módulo de baixo".
+
+- Exemplos de **portas invertidas** que a ARCHITECTURE §3.1 agora lista: `RegistrationCardLabels` (definida no `frontdesk`, implementada pelo `fnrh`, M6 E15; ver [[ZenyHotelManager - Hospedagem e recepção]] e [[ZenyHotelManager - Módulo fnrh]]) ao lado de `FolioOwnerDescriber` (definida no `billing`, implementada pelo `reservations`, M5 E11). A tabela da §3.1 ganhou, na linha do `fnrh`, "`frontdesk` (só a porta `RegistrationCardLabels`, M6 E15)".
+- Uma aresta de módulo de **camada acima** para o de baixo (`fnrh` → `frontdesk`) é a direção permitida; o que não existe é o `frontdesk` importar o `fnrh`.
+- Divergência **não corrigida** (apontada ao `arquiteto`, também registrada na captura da E14): a ARCHITECTURE §3.1 lista `hotel` entre as dependências do `fnrh`, e o `FnrhModule.kt` não o declara (previsão ou divergência).
+- A lista de exemplos de inversão da §3.1 vem do plano e do handoff da E15, não da leitura de `docs/ARCHITECTURE.md` pela captura.
+
+*Nota do curador (conferência por `git` em 2026-11-15, só leitura, no merge `b42ce6f`):* a linha do `fnrh` na tabela da §3.1 é "shared, hotel, reservations, guests, notifications, `frontdesk` (só a porta `RegistrationCardLabels`, M6 E15)", e o item da §3.1 sobre a `FolioOwnerDescriber` continua: "Do mesmo modo, a ficha de registro do `frontdesk` lê os rótulos dos códigos da FNRH pela porta `RegistrationCardLabels`, que o `frontdesk` define e o `fnrh` implementa (a única aresta `fnrh` → `frontdesk`)".
 
 ---
 
@@ -92,3 +114,6 @@ Linhas novas da tabela de decisões (§2):
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Arquitetura e estrutura de módulos - a0fc3031]] (capture_id: a0fc3031-9923-4dfc-bfc7-44c8c88a6666): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 66–81, 593–625, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-09 — [[2026-11-06 - ZenyHotelManager - atualização revisão de arquitetura dos roadmaps - c889f886]] (capture_id: c889f886-0719-4f28-984e-f2ef23ed9520): decisões D18 e D19 e frase nova da regra por camadas, em "Atualizações por capturas".
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização m5-recepcao-fnrh E12 (revisão humana) - 64ce6698]] (capture_id: 64ce6698-9d2c-4a1c-b4d0-af930d24bff5): ordem interna da camada Hospedagem decidida pelo usuário.
+- 2026-11-15 — [[2026-11-12 - ZenyHotelManager - atualização arquitetura e sincronização do M6 - 3a747cdc]] (capture_id: 3a747cdc-6309-4bfa-bea2-3f6cd483a30f): ordem aplicada na ARCHITECTURE (§3.1 e §3.2, `0e58cf9`), dependências conferidas, aresta prevista `fnrh` → `frontdesk` e nota sobre o `hotel` na tabela do `fnrh`; frase das exceções da revisão de 2026-11-06 marcada como superada em parte.
+- 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (capture_id: c139da21-4f16-40bc-8cae-9ee2dc4444c3): portas invertidas da §3.1 (`RegistrationCardLabels` e `FolioOwnerDescriber`), aresta `fnrh` → `frontdesk` dada como implementada e divergência do `hotel` (item 3 da captura); nota do curador com a conferência por `git`.
