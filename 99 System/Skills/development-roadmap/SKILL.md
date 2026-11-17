@@ -54,7 +54,7 @@ Decisões que cabem ao usuário (decisões em aberto que impedem o plano inteiro
 
 ### Projeto sem código (greenfield)
 
-Não invente comandos de validação. A primeira etapa estabelece o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack e os comandos oficiais de build, teste e lint, registrando-os em "Evidências e handoff", no README e na tabela de comandos do `CLAUDE.md` enxuto. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
+Não invente comandos de validação. A primeira etapa estabelece o esqueleto do projeto, um `.gitignore` que cubra os artefatos do stack e os comandos oficiais de build, teste e lint, mais a `verificação rápida` e o `gate do projeto` (ver `references/brain.md`), registrando-os em "Evidências e handoff", no README e na tabela de comandos do `CLAUDE.md` enxuto. Decisões de stack já tomadas nos documentos do projeto são fatos; versões e bibliotecas não citadas são hipóteses.
 
 ## 2. Dimensione o escopo
 

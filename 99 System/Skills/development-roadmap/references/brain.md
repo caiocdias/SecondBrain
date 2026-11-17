@@ -69,7 +69,7 @@ Seções, nesta ordem, só com o que o agente precisa antes de ler o brain:
    - **Atualização:** ao fim de cada etapa de roadmap que mude algo descrito no brain, publique a captura `<Projeto> - atualização <slug> Eyy` com o texto novo ou alterado de cada nota afetada, dizendo qual nota ele substitui ou complementa. "Seção X do `CLAUDE.md`" num roadmap ou handoff antigo é a nota de tema correspondente.
    ```
 
-3. **Stack e comandos**: versões principais e a tabela de comandos oficiais (build, teste, lint, subir o ambiente). Os roadmaps mandam lê-los aqui.
+3. **Stack e comandos**: versões principais e a tabela de comandos oficiais (build, teste, lint, subir o ambiente), mais duas linhas nomeadas que as souls usam: `verificação rápida` (forma de comando, com o módulo e o filtro de teste como parâmetros, que roda os testes do que a tarefa tocou mais a compilação e o lint) e `gate do projeto` (o que precisa estar verde antes de integrar). Os roadmaps mandam lê-los aqui.
 4. **Como trabalhar com os roadmaps**: onde ficam, a regra de tags e handoffs, e a validação com `check_roadmap.py`.
 5. **Decisões do usuário**: entrevista com opção recomendada.
 6. **Git**: branch de trabalho, commit e push só a pedido.

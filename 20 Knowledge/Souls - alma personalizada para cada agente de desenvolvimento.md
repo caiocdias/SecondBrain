@@ -50,6 +50,16 @@ Atualização (2026-10-29): a soul `arquiteto` e a revisão de plano (**[usuári
 - Decisões de arquitetura ficam no repositório (spec ou ADR) e são capturadas no brain pelo `brain-escriba` **[usuário]**. O arquiteto para na spec ou no roadmap e não escreve o plano de etapa **[agente]**.
 - Conferência cruzada: na revisão final, a `revisor-seguranca` exige no plano a seção "Revisão de arquitetura" aprovada **[usuário]**.
 
+Atualização (2026-11-17): desempenho da execução (**[usuário]** = decisão do usuário, **[agente]** = escolha do agente):
+
+- Meta: uma rodada de 3 a 4 etapas em 4 a 6 horas, em vez de 12 a 14, com a qualidade mantida **[usuário]**. A medição de cerca de 20 sessões mostrou que 60–70% do tempo dos agentes era espera de build e teste, e que as revisões custavam 3–5%.
+- Abordagem escolhida: ondas com fila de integração **[usuário]**. O desenho de um construtor por etapa com avaliador no fim, descrito pela Anthropic, não foi adotado agora **[usuário]**.
+- O gate do projeto sai dos agentes e passa ao orquestrador, uma vez por ponto de integração; desenvolvedor e testador rodam a verificação da tarefa **[agente]**.
+- O testador por tarefa fica restrito a uma lista fechada de `Risco: alto` (autenticação ou autorização, dado pessoal ou segredo, valor monetário, migração ou escrita destrutiva, concorrência, parsing de entrada externa); nas demais tarefas, o testador de etapa ataca o diff inteiro antes da revisão final **[agente]**.
+- O plano traz a seção `## Ondas`, e o `revisor-arquitetura` barra dependência declarada sem uso real **[agente]**.
+- A pergunta de arquitetura não trava o lote: entrevista de abertura do lote e, durante a execução, pergunta registrada no handoff **[agente]**.
+- A revisão por tarefa, a revisão final, a revisão do plano e a verificação mecânica não mudaram. O efeito é conferido nas duas primeiras rodadas com `agents/scripts/medir_sessao.py`.
+
 ## Relações
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: a resposta sobre Souls veio de uma entrevista com opção recomendada.
@@ -60,3 +70,4 @@ Atualização (2026-10-29): a soul `arquiteto` e a revisão de plano (**[usuári
 - 2026-10-27 — sessão curadora; design em 99 System/Souls/DESIGN.md: implementação das seis souls, respostas às perguntas em aberto e marcação do que foi decisão do usuário ou escolha do agente (entrevista com opção recomendada).
 - 2026-10-29 — sessão de implementação do plano do arquiteto; a soul `orquestrador-etapa` foi renomeada para `orquestrador` (arquivo, `name` e textos; o trailer `Soul: orquestrador-etapa` segue aceito como alias histórico). O texto de estado acima já usa o nome novo.
 - 2026-10-29 — design em 99 System/Souls/DESIGN-arquiteto.md (entrevista com o usuário com opção recomendada): soul `arquiteto`, soul `revisor-arquitetura` e revisão de plano bloqueante antes da execução; marcação de decisões do usuário e escolhas do agente conforme aquele documento.
+- 2026-11-17 — sessão curadora; design em 99 System/Souls/DESIGN-desempenho.md, a partir da medição de cerca de 20 sessões do orquestrador (4 a 17/11/2026): ondas com fila de integração, verificação da tarefa, lista fechada de risco e entrevista de abertura do lote.

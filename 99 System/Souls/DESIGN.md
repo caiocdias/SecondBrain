@@ -1,6 +1,8 @@
 # Souls — documento de design
 
 > Em 2026-10-29 a soul `orquestrador-etapa` foi renomeada para `orquestrador`.
+>
+> Em 2026-11-17 o ciclo por tarefa mudou: testador por tarefa só na lista fechada de `Risco: alto`, verificação da tarefa no lugar da suíte inteira e gate do projeto rodado pelo orquestrador na integração. Ver [`DESIGN-desempenho.md`](DESIGN-desempenho.md).
 
 Status: rascunho para aprovação do usuário. Criado em 2026-10-27, a partir de uma entrevista com o usuário (brainstorming do superpowers, com as decisões tomadas em perguntas com opção recomendada, conforme [[Decidir pendências do usuário por entrevista com opção recomendada]]).
 
