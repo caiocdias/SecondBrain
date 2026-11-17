@@ -71,7 +71,7 @@ Módulos:
 
 ## Atualização por capturas
 
-Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. No fechamento de cada etapa que muda algo descrito no brain, inclusive o estado, o orquestrador do lote publica em `00 Inbox/` a captura `ZenyHotelManager - atualização <slug> Eyy` com o texto novo ou alterado, dizendo qual nota de tema ele afeta. Módulos novos (housekeeping, fiscal, pos etc.) ganham nota `ZenyHotelManager - Módulo <nome>`. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub.
+Decisão do usuário (2026-10-22). Sessões no repositório são agentes externos do vault: não editam estas notas. No fechamento de cada etapa que muda algo descrito no brain, inclusive o estado, o orquestrador do lote publica em `00 Inbox/` a captura `ZenyHotelManager - atualização <slug> Eyy` com o texto novo ou alterado, dizendo qual nota de tema ele afeta. Módulos novos (housekeeping, fiscal, pos etc.) ganham nota `ZenyHotelManager - Módulo <nome>`. O hook lista as capturas pendentes do projeto; leia-as, pois valem sobre estas notas quando tratam do mesmo assunto. O curador as integra nas notas de tema e no Estado deste hub. Decisão do usuário (2026-11-17): o desenvolvimento segue em outra máquina a partir da `main`; em conflito de informação, as capturas vindas dela valem sobre o que estas notas trazem das branches locais antigas (M6 E18 e E01), que não foi retirado.
 
 ## Próximos passos
 
@@ -84,12 +84,13 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - O comando do hook (`python3` e shell POSIX) ainda não foi testado no Windows.
 - Sem confirmação do usuário (opção recomendada): decisões dos lotes do M5 e do M6, H10 e H13 do `arquiteto` e revisão humana de E13 e E07 do M5 (lista em [[ZenyHotelManager - Estado por marco]]). Risco aceito do `opentelemetry-api` 1.62.0: M8 E17. R7 a R13 e R16 do arquiteto: revisáveis.
 - Dividir o M8 (18 etapas) em dois arquivos: oferecido, não aplicado.
-- PF-01 (setores para recados) e PF-02 (aprovação no histórico do desfazer check-in) do front desktop: pedidos abertos; ver [[ZenyHotelManager - Hospedagem e recepção]].
+- Pedidos abertos do front desktop ([[ZenyHotelManager-DesktopFront]]), sem decisão do servidor: PF-01 (setores para recados) e PF-02 (aprovação no histórico do desfazer check-in), em [[ZenyHotelManager - Hospedagem e recepção]]; PF-03 (trocar titular e hóspedes antes do check-in) e PF-04 (prévia da multa de cancelamento), em [[ZenyHotelManager - Módulo reservations (ciclo de vida, alocação, grupos e busca)]].
 - Q-07 (retenção) no padrão da SPEC até confirmação; fornecedores e hospedagem (Q-05, Q-06, Q-02, Q-03, Q-13) seguem do usuário, com as etapas afetadas `#bloqueada`.
 
 ## Conhecimento relacionado
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: método das decisões do projeto e desta migração.
+- [[ZenyHotelManager-DesktopFront]]: front desktop, cliente do contrato; fixa um commit da `main` e pede pelo brain (`PF-NN`).
 
 ## Proveniência
 
@@ -128,3 +129,5 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - 2026-11-16 — [[2026-11-15 - ZenyHotelManager - pedido do front PF-02 Histórico do desfazer check-in com a aprovação do superior - b6c7bc32]] (capture_id: b6c7bc32-8f7c-4952-85c0-7e210f2b7f81): PF-02.
 - 2026-11-16 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (capture_id: a68d398b-2037-4b20-af27-8039b163ae0e): M6 E18.
 - 2026-11-16 — [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (capture_id: dd5e01e3-3041-431b-81f8-3b801eec3fff): M6 E01 e índice do `housekeeping`.
+- 2026-11-17 — [[2026-11-17 - ZenyHotelManager - pedido do front PF-03 Trocar o titular e os hóspedes de uma reserva antes do check-in - 24803598]] (capture_id: 24803598-810b-4344-997b-c28c79463e5c): PF-03.
+- 2026-11-17 — [[2026-11-17 - ZenyHotelManager - pedido do front PF-04 Prévia da multa de cancelamento da reserva - 8f737e26]] (capture_id: 8f737e26-5881-45fe-85ec-163b1285ac0a): PF-04.
