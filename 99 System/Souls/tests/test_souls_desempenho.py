@@ -42,5 +42,26 @@ class TestVerificacaoDaTarefa(unittest.TestCase):
         self.assertNotIn("saída real da suíte inteira", c)
 
 
+class TestRevisores(unittest.TestCase):
+    def test_revisor_arquitetura_lista_fechada(self):
+        c = corpo("revisor-arquitetura")
+        for item in LISTA_FECHADA:
+            with self.subTest(item=item):
+                self.assertIn(item, c)
+
+    def test_revisor_arquitetura_achados_de_forma(self):
+        c = corpo("revisor-arquitetura")
+        forma = next((l for l in c.splitlines() if "`Risco: alto` sem" in l), "")
+        self.assertIn("Importantes", forma)
+        self.assertIn("`Risco: normal` em tarefa que toca um item da lista", forma)
+        self.assertIn("## Ondas", forma)
+        self.assertIn("`Depende de:` declarado sem", forma)
+
+    def test_revisor_seguranca_evidencia(self):
+        c = corpo("revisor-seguranca")
+        self.assertIn("verificação da tarefa", c)
+        self.assertIn("gate do projeto", c)
+
+
 if __name__ == "__main__":
     unittest.main()
