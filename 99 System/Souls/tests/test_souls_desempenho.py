@@ -135,5 +135,35 @@ class TestRevisaoFinal(unittest.TestCase):
         self.assertIn("fora de qualquer onda", forma)
 
 
+class TestEsperaComPrazo(unittest.TestCase):
+    """Regra contra travamento: em 2026-11-17 um laço `until ! pgrep -f` casou com a própria
+    linha de comando e deixou a etapa parada por 2h39 (MEDICOES-desempenho.md, Medição 1)."""
+
+    def test_quem_roda_teste_poe_limite_e_nao_faz_laco(self):
+        for soul in ("desenvolvedor", "testador"):
+            with self.subTest(soul=soul):
+                c = corpo(soul)
+                self.assertIn("`timeout", c)
+                self.assertIn("notificação de término", c)
+                self.assertRegex(c, r"(?i)não crio laço de espera")
+                self.assertIn("`pgrep`", c)
+                self.assertIn("`nohup`", c)
+                self.assertRegex(c, r"(?i)estourou o limite")
+
+    def test_gate_do_orquestrador_tem_limite(self):
+        gate = next(l for l in corpo("orquestrador").splitlines() if "**Gate de integração.**" in l)
+        self.assertIn("`timeout`", gate)
+        self.assertRegex(gate, r"(?i)sem laço de espera")
+
+    def test_orquestrador_tem_teto_de_espera_por_subagente(self):
+        c = corpo("orquestrador")
+        espera = next((l for l in c.splitlines() if "**Espera com teto.**" in l), "")
+        self.assertRegex(espera, r"teto de \d+ min")
+        self.assertIn("temporizador", espera)
+        self.assertIn("SendMessage", espera)
+        self.assertIn("TaskStop", espera)
+        self.assertIn("não é sinal de vida", espera)
+
+
 if __name__ == "__main__":
     unittest.main()

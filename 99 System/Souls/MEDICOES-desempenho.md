@@ -95,7 +95,11 @@ O tempo ativo do `desenvolvedor` caiu de 20 para 13 minutos por tarefa.
 - 05:54–06:08: três revisões da dívida do ADR 0011 em paralelo (E03, E04 e transversal), 11 a 14 min cada.
 - 06:10–06:33: plano e revisão de arquitetura, com uma rodada de correção.
 - 06:33–08:34: 8 tarefas em três ondas, 2h01 (15 min por tarefa). Cada onda teve uma tarefa com testador por tarefa, de 15 a 17 min antes da revisão; a Task 1 teve duas rodadas de correção. Gates entre as ondas: 10m32 e 11m15.
-- 08:34–11:35: testador de etapa. Às 08:51 um `./gradlew :app:test --tests …` passou para segundo plano depois de 180 s; a notificação de término só chegou às 11:35. Foram 2h39 sem nada mais rodando. O usuário perguntou "tem algo rodando?" às 09:35 e "está travado?" às 11:34. A causa do travamento do Gradle não foi investigada.
+- 08:34–11:35: testador de etapa. Foram 2h39 parados, de 08:56 a 11:35, sem nada mais rodando. O usuário perguntou "tem algo rodando?" às 09:35 e "está travado?" às 11:35. Causa, conferida no transcrito em 2026-11-17 (esta linha corrige a versão anterior, que atribuía a espera a um comando do Gradle):
+  - o Gradle não travou. A verificação das 08:51 foi movida para segundo plano pela ferramenta aos 180 s e terminou às 08:55, com `BUILD SUCCESSFUL`;
+  - o testador então soltou uma campanha de 15 mutantes com `nohup … &` e encerrou o turno esperando por um laço `until ! pgrep -f "scratchpad/mutants.py"`. O `pgrep -f` casava com a linha de comando do próprio laço, que por isso nunca terminou. Os mutantes acabaram às 09:01;
+  - o orquestrador não tinha teto de espera. Às 09:35 viu um worker do Gradle ativo e concluiu que o testador trabalhava; só às 11:35 matou o laço e pediu o relatório;
+  - na mesma sessão, um `desenvolvedor` deixou um laço `until … ! pgrep -f "tests/run.sh"` que rodou 3h32 depois da entrega (casava com o `run.sh` de outros agentes). Nas sessões medidas, desenvolvedores e testadores emitiram cerca de 2.500 comandos com laço de espera, 537 deles com `pgrep`.
 - 11:37–11:48: gate, 10m06.
 - 11:48–11:53: revisão final.
 - 11:55–12:01: fechamento, com um `tests/run.sh` de 5m28.

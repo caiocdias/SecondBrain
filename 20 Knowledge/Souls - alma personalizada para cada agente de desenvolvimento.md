@@ -60,6 +60,13 @@ Atualização (2026-11-17): desempenho da execução (**[usuário]** = decisão 
 - A pergunta de arquitetura não trava o lote: entrevista de abertura do lote e, durante a execução, pergunta registrada no handoff **[agente]**.
 - A revisão por tarefa, a revisão final, a revisão do plano e a verificação mecânica não mudaram. O efeito é conferido nas duas primeiras rodadas com `agents/scripts/medir_sessao.py`.
 
+Atualização (2026-11-17, depois da Medição 1): espera com prazo (**[usuário]** = decisão do usuário, **[agente]** = escolha do agente):
+
+- A primeira rodada medida levou 9h00 para duas etapas, 2h39 delas com a etapa parada. O usuário pediu uma regra contra travamento, ajustada à causa real **[usuário]**.
+- A causa não foi o Gradle: o testador de etapa esperava uma campanha de mutantes com um laço `until ! pgrep -f`, que casava com a própria linha de comando, e o orquestrador não tinha teto de espera.
+- Regra **[agente]**: desenvolvedor e testador põem `timeout` em todo comando de teste, build ou lint, esperam a notificação do próprio comando e não criam laço de espera nem processo solto; o orquestrador põe limite no gate, arma um temporizador e confere o subagente que passa 20 min sem entregar, sem tomar processo de build na máquina como sinal de vida.
+- Registro e números em `99 System/Souls/MEDICOES-desempenho.md`.
+
 ## Relações
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: a resposta sobre Souls veio de uma entrevista com opção recomendada.
@@ -71,3 +78,4 @@ Atualização (2026-11-17): desempenho da execução (**[usuário]** = decisão 
 - 2026-10-29 — sessão de implementação do plano do arquiteto; a soul `orquestrador-etapa` foi renomeada para `orquestrador` (arquivo, `name` e textos; o trailer `Soul: orquestrador-etapa` segue aceito como alias histórico). O texto de estado acima já usa o nome novo.
 - 2026-10-29 — design em 99 System/Souls/DESIGN-arquiteto.md (entrevista com o usuário com opção recomendada): soul `arquiteto`, soul `revisor-arquitetura` e revisão de plano bloqueante antes da execução; marcação de decisões do usuário e escolhas do agente conforme aquele documento.
 - 2026-11-17 — sessão curadora; design em 99 System/Souls/DESIGN-desempenho.md, a partir da medição de cerca de 20 sessões do orquestrador (4 a 17/11/2026): ondas com fila de integração, verificação da tarefa, lista fechada de risco e entrevista de abertura do lote.
+- 2026-11-17 — sessão curadora, a pedido do usuário, sobre a Medição 1 (99 System/Souls/MEDICOES-desempenho.md; transcrito da sessão 17d41971 do ZenyHotelManager-DesktopFront): causa do travamento de 2h39 e regra de espera com prazo nas souls `desenvolvedor`, `testador` e `orquestrador`.
