@@ -32,6 +32,8 @@ BUILD_PADRAO = {
 # Comando que conta como uma execução do gate completo do projeto. O padrão é
 # comparado com o início de cada comando da linha de shell, não com o texto todo.
 GATE_PADRAO = r"(?:\./gradlew|gradle)\s+build\b"
+# Espera por tarefa em segundo plano a partir da qual o intervalo deixa de contar como ativo.
+ESPERA_LONGA = 1800
 
 
 def ts(s):
@@ -65,11 +67,16 @@ def has_result(d):
     return isinstance(c, list) and any(isinstance(b, dict) and b.get('type') == 'tool_result' for b in c)
 
 
-def analyze(rows, is_main, build=None):
-    """Devolve dict com tempos por categoria, intervalos ativos e contagens."""
+def analyze(rows, is_main, build=None, espera_longa=ESPERA_LONGA):
+    """Devolve dict com tempos por categoria, intervalos ativos e contagens.
+
+    Espera por tarefa em segundo plano depois de o subagente já ter entregado o relatório
+    conta como ociosa. Espera de `espera_longa` segundos ou mais sai do tempo ativo e vai
+    para `esperas_longas`: ou é travamento, ou é um comando que merece ser olhado."""
     R = dict(api=0.0, tools=collections.Counter(), bgwait=0.0, idle=0.0, active=[], out=0, think=0,
-             calls=0, cache_read=0, models=collections.Counter(), dispatches=0, long=[], subwait=0.0)
-    seen = {}; pending = {}; prev = None
+             calls=0, cache_read=0, models=collections.Counter(), dispatches=0, long=[], subwait=0.0,
+             esperas_longas=[])
+    seen = {}; pending = {}; prev = None; entregou = False
     for d in rows:
         if d.get('type') not in ('user', 'assistant') or not d.get('timestamp'): continue
         t = ts(d['timestamp']); m = d.get('message', {})
@@ -86,6 +93,7 @@ def analyze(rows, is_main, build=None):
                     inp = b.get('input') or {}
                     cls = classify(inp.get('command'), build) if b['name'] == 'Bash' else b['name']
                     pending[b['id']] = (cls, (inp.get('command') or '')[:150])
+                    if b['name'] == 'SubagentHandback': entregou = True
         elif has_result(d):
             kind = 'tool'
             cls = None
@@ -105,13 +113,17 @@ def analyze(rows, is_main, build=None):
             else:
                 kind = 'idle'
                 R['dispatches'] += 1
+                entregou = False
         if prev is not None and kind != 'skip':
             g = t - prev
             if kind == 'api': R['api'] += g; R['active'].append((prev, t))
             elif kind == 'tool':
                 R['tools'][cls] += g; R['active'].append((prev, t))
                 if g >= 90: R['long'].append((g, cls, cmd))
-            elif kind == 'bgwait': R['bgwait'] += g; R['active'].append((prev, t))
+            elif kind == 'bgwait':
+                if entregou: R['idle'] += g
+                elif g >= espera_longa: R['esperas_longas'].append(g)
+                else: R['bgwait'] += g; R['active'].append((prev, t))
             elif kind == 'subwait': R['subwait'] += g
             else: R['idle'] += g
         prev = t
@@ -177,6 +189,17 @@ def razao(a, b):
     return a / b if b else None
 
 
+def classe_testador(desc):
+    """Classifica um despacho do testador pela descrição: 'etapa', 'ataque' ou 'tarefa'.
+
+    É heurística: a descrição é texto livre do orquestrador. 'tarefa' é a tarefa do plano
+    que só tem teste e foi entregue ao testador como implementador."""
+    d = (desc or '').lower()
+    if 'etapa' in d or 'stage' in d: return 'etapa'
+    if re.search(r'testador|\bataca\b|\bataque\b|\battack|^test(?:ar|e)?\b', d): return 'ataque'
+    return 'tarefa'
+
+
 def ler_jsonl(path):
     with open(path, encoding='utf-8') as f:
         return [json.loads(l) for l in f]
@@ -225,13 +248,20 @@ def medir(path, gate_regex=GATE_PADRAO, build=None):
     sub_soma = sum(s['ativo'] for s in subs)
     nada = relogio - total(busy)
     espera_usuario = M['tools'].get('AskUserQuestion', 0.0)
-    tarefas = sum(1 for s in subs if s['role'] == 'desenvolvedor')
-    testadores = sum(1 for s in subs if s['role'] == 'testador')
+    classes = collections.Counter(classe_testador(s['desc']) for s in subs if s['role'] == 'testador')
+    tarefas_dev = sum(1 for s in subs if s['role'] == 'desenvolvedor')
+    tarefas = tarefas_dev + classes['tarefa']
+    testadores = sum(classes.values())
+    esperas = [dict(papel=s['role'], desc=s['desc'], segundos=g) for s in subs for g in s['esperas_longas']]
+    esperas += [dict(papel='orquestrador', desc='', segundos=g) for g in M['esperas_longas']]
     return dict(
         inicio=t0, fim=t1, relogio=relogio, sub_ativo=sub_ativo, sub_soma=sub_soma,
         paralelismo=razao(sub_soma, sub_ativo), so_orquestrador=total(subtract(main_u, sub_u)),
         nada_rodando=nada, espera_usuario=espera_usuario, relogio_sem_usuario=relogio - nada - espera_usuario,
-        tarefas=tarefas, testadores=testadores, fracao_testador=razao(testadores, tarefas),
+        tarefas=tarefas, tarefas_desenvolvedor=tarefas_dev, tarefas_de_teste=classes['tarefa'],
+        testadores=testadores, ataques=classes['ataque'], testadores_etapa=classes['etapa'],
+        fracao_testador=razao(classes['ataque'], tarefas),
+        esperas_longas=esperas, espera_longa_total=sum(e['segundos'] for e in esperas),
         gates=gates, gates_por_tarefa=razao(gates, tarefas), por_papel=por_papel,
         api_total=sum(s['api'] for s in subs) + M['api'],
         build_total=sum(s['build'] + s['bgwait'] for s in subs) + tempo_build(M['tools']) + M['bgwait'],
@@ -252,8 +282,12 @@ def imprimir(path, r, verbose):
     print(f"RELÓGIO: subagentes ativos {hm(r['sub_ativo'])} (soma {hm(r['sub_soma'])}, paralelismo "
           f"{num(r['paralelismo'])}x) | só orquestrador {hm(r['so_orquestrador'])} | nada rodando {hm(r['nada_rodando'])}")
     print(f"MEDIDAS: relógio sem usuário {hm(r['relogio_sem_usuario'])} (espera em AskUserQuestion "
-          f"{hm(r['espera_usuario'])}) | tarefas {r['tarefas']} | gates por tarefa {num(r['gates_por_tarefa'])} "
-          f"({r['gates']} gates) | testador por tarefa {num(r['fracao_testador'])} ({r['testadores']} testadores)")
+          f"{hm(r['espera_usuario'])}) | tarefas {r['tarefas']} ({r['tarefas_desenvolvedor']} do desenvolvedor, "
+          f"{r['tarefas_de_teste']} de teste) | gates por tarefa {num(r['gates_por_tarefa'])} ({r['gates']} gates) | "
+          f"testador por tarefa {num(r['fracao_testador'])} ({r['ataques']} ataques, {r['testadores_etapa']} de etapa)")
+    if r['esperas_longas']:
+        print(f"ESPERAS LONGAS em segundo plano (fora do tempo ativo), total {hm(r['espera_longa_total'])}: " +
+              '; '.join(f"{e['papel']} «{e['desc'][:40]}» {hm(e['segundos'])}" for e in r['esperas_longas']))
     mt = sum(M['tools'].values())
     print(f"ORQUESTRADOR: API {hm(M['api'])} ({M['calls']} chamadas, {M['out']//1000}k tok saída, {M['think']//1000}k pensando) | "
           f"ferramentas {hm(mt)} [" + ', '.join(f"{k} {hm(v)}" for k, v in M['tools'].most_common(6)) +

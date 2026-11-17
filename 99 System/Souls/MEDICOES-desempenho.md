@@ -119,4 +119,12 @@ Do relógio de 9h00:
 - Uma sessão só, e atípica: a E05 é etapa de gate (roteiro, pacote, verificação ao vivo) e a E06 é etapa de correção, com três revisões grandes no início.
 - A comparação por etapa usa etapas de tamanho diferente; a E05 foi medida sem a Task 1, feita em sessão anterior.
 - Os tempos vêm dos carimbos dos transcritos, e os comandos são classificados por expressão regular.
-- Os defeitos do script que apareceram aqui (espera em segundo plano depois da entrega contada como ativa; `tarefas` e fração de testador) continuam sem correção.
+- Os três defeitos do script que apareceram aqui foram corrigidos em 2026-11-17, depois desta medição. A espera em segundo plano depois da entrega conta como ociosa; a espera de 30 min ou mais sai do tempo ativo e aparece na linha `ESPERAS LONGAS`; `tarefas` inclui as tarefas de teste entregues ao `testador`; e a fração de testador conta só os ataques por tarefa. A classificação dos despachos do `testador` é heurística, pela descrição. Com o script corrigido, esta sessão dá:
+
+```text
+RELÓGIO: subagentes ativos 4h22 (soma 6h12, paralelismo 1.42x) | só orquestrador 1h58 | nada rodando 2h38
+MEDIDAS: relógio sem usuário 6h21 (espera em AskUserQuestion 0m00) | tarefas 14 (11 do desenvolvedor, 3 de teste) | gates por tarefa 0.64 (9 gates) | testador por tarefa 0.29 (4 ataques, 2 de etapa)
+ESPERAS LONGAS em segundo plano (fora do tempo ativo), total 2h39: testador «Testador de etapa da E06» 2h39
+```
+
+O paralelismo sai 1,42× em vez do 1,47× corrigido à mão, porque o script agora também tira as esperas curtas feitas depois da entrega. Nas sessões antigas o mesmo ajuste baixa o paralelismo para 1,00–1,05× e a fração de testador por tarefa fica entre 0,80 e 0,88.
