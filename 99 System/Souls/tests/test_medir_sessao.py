@@ -162,6 +162,21 @@ class TestMedirSessao(unittest.TestCase):
             with self.subTest(desc=desc):
                 self.assertEqual(classe_testador(desc), "tarefa")
 
+    def test_contexto_de_pico_do_desenvolvedor(self):
+        a = assistente(5, "a")
+        a["message"]["usage"] = {"input_tokens": 10, "cache_read_input_tokens": 50_000,
+                                 "cache_creation_input_tokens": 5_000, "output_tokens": 1}
+        b = assistente(9, "b")
+        b["message"]["usage"] = {"input_tokens": 20, "cache_read_input_tokens": 120_000,
+                                 "cache_creation_input_tokens": 0, "output_tokens": 1}
+        caminho = self.sessao(
+            [prompt(0), assistente(1, "m0")],
+            [("a1", "desenvolvedor", [prompt(0), a, b]),
+             ("a2", "testador", [prompt(0), assistente(3, "c")], "Testador de etapa")])
+        r = self.medir(caminho)
+        self.assertEqual(r["contexto_pico_desenvolvedor"], 120_020)
+        self.assertEqual(r["por_papel"]["desenvolvedor"]["contexto_pico"], 120_020)
+
     def test_espera_depois_da_entrega_nao_conta_como_ativo(self):
         caminho = self.sessao(
             [prompt(0), assistente(1, "m0")],
@@ -224,6 +239,7 @@ class TestMedirSessao(unittest.TestCase):
         self.assertIsNone(r["paralelismo"])
         self.assertIsNone(r["gates_por_tarefa"])
         self.assertIsNone(r["fracao_testador"])
+        self.assertIsNone(r["contexto_pico_desenvolvedor"])
 
     def test_retomada_nao_conta_como_ativo(self):
         caminho = self.sessao(

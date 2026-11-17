@@ -75,7 +75,7 @@ def analyze(rows, is_main, build=None, espera_longa=ESPERA_LONGA):
     para `esperas_longas`: ou é travamento, ou é um comando que merece ser olhado."""
     R = dict(api=0.0, tools=collections.Counter(), bgwait=0.0, idle=0.0, active=[], out=0, think=0,
              calls=0, cache_read=0, models=collections.Counter(), dispatches=0, long=[], subwait=0.0,
-             esperas_longas=[])
+             esperas_longas=[], ctx_pico=0)
     seen = {}; pending = {}; prev = None; entregou = False
     for d in rows:
         if d.get('type') not in ('user', 'assistant') or not d.get('timestamp'): continue
@@ -88,6 +88,9 @@ def analyze(rows, is_main, build=None, espera_longa=ESPERA_LONGA):
             if mid not in seen:
                 R['calls'] += 1; R['models'][m.get('model', '?')] += 1
             seen[mid] = u
+            # Contexto enviado nesta chamada: é o que mostra se o agente está perto do limite da janela.
+            R['ctx_pico'] = max(R['ctx_pico'], u.get('input_tokens', 0) + u.get('cache_read_input_tokens', 0)
+                                + u.get('cache_creation_input_tokens', 0))
             for b in m.get('content') or []:
                 if isinstance(b, dict) and b.get('type') == 'tool_use':
                     inp = b.get('input') or {}
@@ -239,7 +242,8 @@ def medir(path, gate_regex=GATE_PADRAO, build=None):
     por_papel = {}
     for s in subs:
         r = por_papel.setdefault(s['role'], dict(agentes=0, despachos=0, ativo=0.0, api=0.0, build=0.0,
-                                                 espera_bg=0.0, outras=0.0, saida=0, chamadas=0))
+                                                 espera_bg=0.0, outras=0.0, saida=0, chamadas=0, contexto_pico=0))
+        r['contexto_pico'] = max(r['contexto_pico'], s['ctx_pico'])
         r['agentes'] += 1; r['despachos'] += max(s['dispatches'], 1); r['ativo'] += s['ativo']
         r['api'] += s['api']; r['build'] += s['build']; r['espera_bg'] += s['bgwait']
         r['outras'] += sum(s['tools'].values()) - s['build']; r['saida'] += s['out']; r['chamadas'] += s['calls']
@@ -262,6 +266,7 @@ def medir(path, gate_regex=GATE_PADRAO, build=None):
         testadores=testadores, ataques=classes['ataque'], testadores_etapa=classes['etapa'],
         fracao_testador=razao(classes['ataque'], tarefas),
         esperas_longas=esperas, espera_longa_total=sum(e['segundos'] for e in esperas),
+        contexto_pico_desenvolvedor=por_papel['desenvolvedor']['contexto_pico'] if 'desenvolvedor' in por_papel else None,
         gates=gates, gates_por_tarefa=razao(gates, tarefas), por_papel=por_papel,
         api_total=sum(s['api'] for s in subs) + M['api'],
         build_total=sum(s['build'] + s['bgwait'] for s in subs) + tempo_build(M['tools']) + M['bgwait'],
@@ -284,7 +289,8 @@ def imprimir(path, r, verbose):
     print(f"MEDIDAS: relógio sem usuário {hm(r['relogio_sem_usuario'])} (espera em AskUserQuestion "
           f"{hm(r['espera_usuario'])}) | tarefas {r['tarefas']} ({r['tarefas_desenvolvedor']} do desenvolvedor, "
           f"{r['tarefas_de_teste']} de teste) | gates por tarefa {num(r['gates_por_tarefa'])} ({r['gates']} gates) | "
-          f"testador por tarefa {num(r['fracao_testador'])} ({r['ataques']} ataques, {r['testadores_etapa']} de etapa)")
+          f"testador por tarefa {num(r['fracao_testador'])} ({r['ataques']} ataques, {r['testadores_etapa']} de etapa) | "
+          f"contexto de pico do desenvolvedor {num(r['contexto_pico_desenvolvedor'] and r['contexto_pico_desenvolvedor'] / 1000, '{:.0f}k')}")
     if r['esperas_longas']:
         print(f"ESPERAS LONGAS em segundo plano (fora do tempo ativo), total {hm(r['espera_longa_total'])}: " +
               '; '.join(f"{e['papel']} «{e['desc'][:40]}» {hm(e['segundos'])}" for e in r['esperas_longas']))
