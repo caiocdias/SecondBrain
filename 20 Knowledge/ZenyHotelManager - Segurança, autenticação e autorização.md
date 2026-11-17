@@ -110,6 +110,14 @@ Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E
 
 *Nota do curador (conferência por `git` em 2026-11-15, só leitura, no merge `b42ce6f`):* em `frontdesk/FrontdeskPermissions.kt`, a declaração de `STAYS_CHECK_IN` tem a descrição "Fazer o check-in de uma reserva confirmada (com a caução opcional) e abrir a ficha de registro " + "(PDF e impressão)", com `setOf(ALL)`; os dois testes citados existem em `src/test/kotlin/com/zeny/hotel/frontdesk/`, sem leitura do corpo.
 
+### Permissões do `housekeeping` (M6 E01, 2026-11-16)
+
+Origem: [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (item 5; resumo do agente a partir do material do orquestrador do lote). Regras de autorização e auditoria do módulo em [[ZenyHotelManager - Módulo housekeeping]] ("Permissões e auditoria").
+
+- As permissões novas são `housekeeping.config.read` e `housekeeping.config.manage` (escopo `ALL`, não sensíveis), concedidas aos modelos MANAGER e HOUSEKEEPER. A lista exaustiva do MANAGER no `AuthorizationTest` foi atualizada.
+
+*Nota do curador (conferência por `git` em 2026-11-16, só leitura, no `0d3eba1`):* existem `housekeeping/HousekeepingPermissions.kt` e `HousekeepingPermissionsTest`; o `0d3eba1` é "Atualiza os grants esperados dos modelos de papel com o housekeeping (E01)". O conteúdo não foi lido. Na ponta da branch (`adba5e3`, M6 E02 `#em-andamento`, sem captura), há o commit `87c986c` "Atualiza as listas exaustivas de permissões com as de tarefas (E02)": permissões de tarefas ainda não descritas aqui.
+
 ---
 
 ## Proveniência
@@ -126,3 +134,4 @@ Origem: [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E
 - 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E15 - c139da21]] (capture_id: c139da21-4f16-40bc-8cae-9ee2dc4444c3): descrição nova de `frontdesk.stays.checkin` (abre a ficha) e sessões mantidas na troca de descrição (item 4 da captura); nota do curador com a conferência por `git`.
 - 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 - cb3979d0]] (capture_id: cb3979d0-82db-4bb4-bf98-0a7b8630e398): decisão sobre a E15 (h) dada como implementada na M6 E17 (corpo das escritas do `guests` condicionado a `guests.profiles.read`, item 1 da captura).
 - 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 (revisão humana) - 4ab01eb7]] (capture_id: 4ab01eb7-f60b-483f-8ae1-66de5753d21c): corpo mínimo `{id, restricted}` aprovado pelo usuário (H14 (b)).
+- 2026-11-16 — [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (capture_id: dd5e01e3-3041-431b-81f8-3b801eec3fff): permissões `housekeeping.config.read` e `housekeeping.config.manage` (item 5 da captura), na subseção nova "Permissões do `housekeeping`"; nota do curador com a conferência por `git`.

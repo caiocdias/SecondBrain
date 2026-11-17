@@ -92,7 +92,7 @@ Origem: [[2026-11-13 - ZenyHotelManager - atualização m6-operacao-fechamento E
 
 Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 6).
 
-- A ARCHITECTURE §11 "Identificadores e tipos" registra o alcance do PostgreSQL, menor que o do Java: `timestamptz` de 4714-11-24 a.C. (ano ISO −4713) a 294276 d.C.; `date` do mesmo início a 5874897 d.C. Valor de fora que chega a uma consulta sem passar por regra de negócio (ex.: a chave do cursor) é recusado antes do banco. A recusa do cursor no `PageCursor` entra com a M6 E18 ([[ZenyHotelManager - Convenções de API]]).
+- A ARCHITECTURE §11 "Identificadores e tipos" registra o alcance do PostgreSQL, menor que o do Java: `timestamptz` de 4714-11-24 a.C. (ano ISO −4713) a 294276 d.C.; `date` do mesmo início a 5874897 d.C. Valor de fora que chega a uma consulta sem passar por regra de negócio (ex.: a chave do cursor) é recusado antes do banco. A recusa do cursor no `PageCursor` entra com a M6 E18 ([[ZenyHotelManager - Convenções de API]]). *(Nota do curador, 2026-11-16: entrou; o piso efetivo é `-4712-01-01`, e não o início acima: subseção "Piso efetivo do driver", abaixo.)*
 
 ### Migração do no-show (M6 E11, 2026-11-14)
 
@@ -111,11 +111,28 @@ Migração única `fnrh/V2026_11_14_1000__add_fnrh_no_show.sql` (D-E14-6), poste
 - `fnrh.remote_reservation` ganha a coluna `no_show boolean NOT NULL DEFAULT false` e a CHECK **`remote_reservation_closed_ck CHECK (NOT (cancelled AND no_show))`**: a remota é cancelada ou no-show, nunca as duas (o passo do no-show não chama numa cancelada e o do cancelamento não chama numa no-show).
 - **Contrato da view `fnrh.report_submissions`:** a definição da view **não muda**, mas a nota do contrato (cabeçalho de comentário da `V2026_11_10_1100`, já aplicada e que não se edita) ganha complemento no **cabeçalho de comentário da migração nova**: a coluna `operation` passa a incluir `NO_SHOW` e a coluna `last_failure` passa a incluir `REMOTE_NO_SHOW`. Quem lê o contrato da view precisa ler os cabeçalhos das **duas** migrações (o teste `FnrhReportViewsAttackTest` "the migration comment names every…" passou a ler os dois e continua exigindo cada operação e cada situação).
 - A convenção para colunas publicadas que crescem em valores (a coluna não muda de sentido, só ganha valores) fica: a migração que acrescenta o valor repete a nota do contrato no próprio cabeçalho.
-- **A próxima migração do projeto precisa de versão posterior a `V2026_11_14_1000`** (substitui o "posterior a `V2026_11_13_1000`" da subseção "Migração do no-show (M6 E11)" acima).
+- **A próxima migração do projeto precisa de versão posterior a `V2026_11_14_1000`** (substitui o "posterior a `V2026_11_13_1000`" da subseção "Migração do no-show (M6 E11)" acima; substituído pela subseção "Schema `housekeeping` (M6 E01)" abaixo).
 
 Testes: `FnrhNoShowMigrationTest` (aceita `NO_SHOW` e `REMOTE_NO_SHOW`, recusa `BOGUS`, `no_show` falso por padrão, recusa `cancelled` e `no_show` juntos, cabeçalho documenta o contrato da view); `MigrationConventionTest` e `DatabaseMigrationsTest` passam.
 
 *Nota do curador (conferência por `git` em 2026-11-15, só leitura, no `ad970fc`):* o conteúdo da migração (as duas CHECKs trocadas, a coluna, a `remote_reservation_closed_ck` e o cabeçalho com o contrato da view) confere com o texto acima.
+
+### Piso efetivo do driver: `-4712-01-01` (M6 E18, 2026-11-15)
+
+Origem: [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (item 6), com a correção [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 (correção) - c383eb2b]], que vale sobre ela na frase da última migração. Complementa a subseção "Alcance de `date` e `timestamptz`", acima. A faixa do cursor está em [[ZenyHotelManager - Convenções de API]] ("Cursor e datas estritos: comportamento atual").
+
+- **Piso efetivo do driver (ARCHITECTURE §11, atualizada em `04004ba`):** o `date` e o `timestamptz` do PostgreSQL vão até `-4713-11-24` e `+5874897-12-31` / `+294276-12-31`, mas o **pgjdbc só representa a partir de `-4712-01-01`**: qualquer data ou instante anterior a esse dia é enviado como `-infinity`, sem erro. O piso efetivo do projeto é `-4712-01-01` (`StorableRange`). A §11 dizia `-4713-11-24` antes.
+- Efeito sobre dados: uma data `LocalDate.MAX` é gravada como `infinity` e relida como `LocalDate.MAX` (pendência I2 em [[ZenyHotelManager - Convenções de API]]).
+- **A E18 não tem migração** (correção c383eb2b, conferência do orquestrador no worktree; a captura da E18 dizia que a última migração continuava `printing/V2026_11_11_1001__grant_printing_to_app_role.sql`, frase que a correção manda ignorar). Na E18, a última migração do projeto era `V2026_11_14_1000__add_fnrh_no_show.sql` (M6 E14); antes dela, `V2026_11_13_1000__add_reservation_no_show.sql` e `V2026_11_12_1001__grant_endofday_to_app_role.sql`. Toda migração nova precisa de timestamp posterior (`outOfOrder` desligado); a regra atual está na subseção "Schema `housekeeping`", abaixo.
+
+### Schema `housekeeping` (M6 E01, 2026-11-16)
+
+Origem: [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (item 4; resumo do agente a partir do material do orquestrador do lote). Tabelas, restrições e carga inicial em [[ZenyHotelManager - Módulo housekeeping]] ("Banco").
+
+- Schema novo, `housekeeping`, com as migrações `housekeeping/V2026_11_15_1000__create_housekeeping.sql` e `V2026_11_15_1001__grant_housekeeping_to_app_role.sql`, a última migração do projeto no fechamento da E01 (substitui qualquer indicação anterior de "última migração"; a E18 não tinha migração). **A próxima migração do projeto precisa de versão posterior a `V2026_11_15_1001`** (substitui o "posterior a `V2026_11_14_1000`" da subseção "Schema `fnrh`: no-show" acima).
+- O trigger `housekeeping.refuse_delete` vale nas tabelas de tipo e de faxina (`cleaning_type` e `scheduled_cleaning`), e o papel da aplicação só tem DELETE em `cleaning_type_credit` (`DatabaseRolesTest`, `NO_DELETE_TABLES`).
+
+*Nota do curador (conferência por `git` em 2026-11-16, só leitura):* no `0d3eba1`, as duas migrações existem em `db/migration/housekeeping/`, e a anterior a elas é `fnrh/V2026_11_14_1000__add_fnrh_no_show.sql`, como a correção c383eb2b diz. Na ponta da branch `roadmap/m6-operacao-fechamento` (`adba5e3`, M6 E02 `#em-andamento`, ainda sem captura), já existem também `housekeeping/V2026_11_16_1000__create_housekeeping_task.sql` e `V2026_11_16_1001__grant_housekeeping_task_to_app_role.sql`: quem criar migração a partir dessa ponta precisa de versão posterior a `V2026_11_16_1001`. O conteúdo das migrações não foi lido.
 
 ---
 
@@ -130,3 +147,6 @@ Testes: `FnrhNoShowMigrationTest` (aceita `NO_SHOW` e `REMOTE_NO_SHOW`, recusa `
 - 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): alcance de `date` e `timestamptz` na ARCHITECTURE §11 (item 6 da captura).
 - 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E11 - df23f14d]] (capture_id: df23f14d-ec3c-4fa2-aa75-462913ddaf5e): migração `V2026_11_13_1000` do no-show e nova versão mínima da próxima migração (itens 1, 3 e 10 da captura).
 - 2026-11-15 — [[2026-11-14 - ZenyHotelManager - atualização m6-operacao-fechamento E14 - 998156dc]] (capture_id: 998156dc-c51d-47f2-ad9c-86f204f7236c): schema `fnrh` do no-show (migração `V2026_11_14_1000`, CHECKs, coluna `no_show`, contrato da view) e nova versão mínima da próxima migração (item 2 da captura); nota do curador com a migração conferida por `git`.
+- 2026-11-16 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (capture_id: a68d398b-2037-4b20-af27-8039b163ae0e): piso efetivo do pgjdbc em `-4712-01-01` e efeito do `infinity` (item 6 da captura), na subseção nova "Piso efetivo do driver"; a frase da última migração entrou já corrigida pela captura c383eb2b.
+- 2026-11-16 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 (correção) - c383eb2b]] (capture_id: c383eb2b-baa6-47c2-9eb7-545ebe5dfb34): a E18 não tem migração e a última era `V2026_11_14_1000` (substitui a frase do item 6 da captura a68d398b).
+- 2026-11-16 — [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (capture_id: dd5e01e3-3041-431b-81f8-3b801eec3fff): schema `housekeeping`, migrações `V2026_11_15_1000` e `V2026_11_15_1001` e nova versão mínima da próxima migração (item 4 da captura), na subseção nova "Schema `housekeeping`"; nota do curador com a conferência por `git` e as migrações da E02 já na branch.

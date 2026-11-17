@@ -25,7 +25,7 @@ Documentação, mensagens ao usuário e commits em pt-BR; código, API e banco e
 
 ## Estado
 
-- M0 a M4 concluídos. M5 concluído em 2026-11-12 (gate E12, merge `ab8b406`), salvo a E09 `#bloqueada` (Q-12, cobrada no M8 E13). M6 (18 etapas): E10, E11 e E14 a E17 `#concluida`, demais `#pendente`. Detalhes em [[ZenyHotelManager - Estado por marco]].
+- M0 a M4 concluídos. M5 concluído em 2026-11-12 (gate E12, merge `ab8b406`), salvo a E09 `#bloqueada` (Q-12, cobrada no M8 E13). M6 (18 etapas): E01, E10, E11 e E14 a E18 `#concluida`, demais `#pendente`; E18 e E01 só na branch do M6, sem merge na `main`. Detalhes em [[ZenyHotelManager - Estado por marco]].
 - Referência técnica no brain desde 2026-10-22 (decisão do usuário), carregada pelo hook `load-brain.py`, que exige `BRAIN: carregado (ZenyHotelManager)`.
 - Roadmaps M5 a M10 no formato da skill `development-roadmap`, executados com `claude --agent`: `arquiteto` desenha e revê, `orquestrador` planeja e executa.
 - Dependências: lockfiles estritos e `osv-scanner` sem Critical/High; leia [[ZenyHotelManager - Ambiente, banco, chaves e build]] antes de mexer nelas.
@@ -67,6 +67,7 @@ Módulos:
 - [[ZenyHotelManager - Módulo fnrh]]: FNRH/Serpro: configuração, porta e adaptador, falhas, saneador, validador, envio assíncrono (E08, padrão de M7 e M8), no-show (M6 E14). Leia antes da E09.
 - [[ZenyHotelManager - Módulo printing]]: agentes, impressoras, fila, token e documentos (E11). Leia antes de criar um documento.
 - [[ZenyHotelManager - Módulo endofday]]: fechamento do dia: motor, as 8 etapas (E11), pendências, gatilho.
+- [[ZenyHotelManager - Módulo housekeeping]]: governança: tipos de limpeza, créditos, faxinas programadas (M6 E01). Leia antes da E02.
 
 ## Atualização por capturas
 
@@ -74,7 +75,8 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 
 ## Próximos passos
 
-- Revisão humana da M6 E11 (usuário); M6 (`orquestrador`): E18, E01 e demais; `arquiteto`: manutenção do `fnrh` e pendências da E14 a E16 (Estado por marco).
+- Revisão humana da M6 E11 (usuário); M6 (`orquestrador`): E02 e demais; `arquiteto`: manutenção do `fnrh` e pendências da E14 a E16, da E18 e da E01 (Estado por marco).
+- Avisar o front desktop (M6 E18): `""` em data ou instante opcional agora dá `400 INVALID_FORMAT`.
 - Sincronizar M7 a M10 com o código antes do primeiro lote de cada um (regra 2 de `docs/roadmaps/README.md`; divergências nas "Notas para o plano").
 
 ## Perguntas abertas
@@ -82,7 +84,7 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - O comando do hook (`python3` e shell POSIX) ainda não foi testado no Windows.
 - Sem confirmação do usuário (opção recomendada): decisões dos lotes do M5 e do M6, H10 e H13 do `arquiteto` e revisão humana de E13 e E07 do M5 (lista em [[ZenyHotelManager - Estado por marco]]). Risco aceito do `opentelemetry-api` 1.62.0: M8 E17. R7 a R13 e R16 do arquiteto: revisáveis.
 - Dividir o M8 (18 etapas) em dois arquivos: oferecido, não aplicado.
-- PF-01 do front desktop (setores para recados): pedido aberto; ver [[ZenyHotelManager - Hospedagem e recepção]].
+- PF-01 (setores para recados) e PF-02 (aprovação no histórico do desfazer check-in) do front desktop: pedidos abertos; ver [[ZenyHotelManager - Hospedagem e recepção]].
 - Q-07 (retenção) no padrão da SPEC até confirmação; fornecedores e hospedagem (Q-05, Q-06, Q-02, Q-03, Q-13) seguem do usuário, com as etapas afetadas `#bloqueada`.
 
 ## Conhecimento relacionado
@@ -123,3 +125,6 @@ Decisão do usuário (2026-10-22). Sessões no repositório são agentes externo
 - 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E17 (revisão humana) - 4ab01eb7]] (capture_id: 4ab01eb7-f60b-483f-8ae1-66de5753d21c): revisão humana da E17.
 - 2026-11-15 — [[2026-11-15 - ZenyHotelManager - atualização arquitetura §7 resposta que varia com a permissão - 77927cd7]] (capture_id: 77927cd7-51b9-4718-b108-048c262be5c7): `oneOf` na §7.
 - 2026-11-15 — [[2026-11-15 - ZenyHotelManager - pedido do front PF-01 Setores dos recados legíveis com frontdesk.traces.manage - 324e0e8f]] (capture_id: 324e0e8f-f656-496a-b6a8-446fe491e384): PF-01.
+- 2026-11-16 — [[2026-11-15 - ZenyHotelManager - pedido do front PF-02 Histórico do desfazer check-in com a aprovação do superior - b6c7bc32]] (capture_id: b6c7bc32-8f7c-4952-85c0-7e210f2b7f81): PF-02.
+- 2026-11-16 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (capture_id: a68d398b-2037-4b20-af27-8039b163ae0e): M6 E18.
+- 2026-11-16 — [[2026-11-16 - ZenyHotelManager - atualização m6-operacao-fechamento E01 - dd5e01e3]] (capture_id: dd5e01e3-3041-431b-81f8-3b801eec3fff): M6 E01 e índice do `housekeeping`.

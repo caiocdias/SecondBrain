@@ -18,7 +18,7 @@ Texto literal do `CLAUDE.md` do repositório, linhas 520–539, no commit `a6c0f
 
 - **Auditoria** (RF-ACS-11, RNF-11, ARCHITECTURE §5 e §8.3, M1 E04). A anotação e as portas ficam na raiz do `shared` (`Auditing.kt`); o aspecto, em `shared/infrastructure/audit/`; a trilha, no módulo `audit`.
   - **Regra:** todo caso de uso de escrita (método público `@Transactional` sem `readOnly` em `application`) leva `@Audited("<módulo>.<entidade>.<verbo>")`, com o código estável da ação em minúsculas e kebab-case (`iam.user.reset-password`). A regra ArchUnit `writeUseCasesAreAudited` (`LayerArchitectureTest`) barra o que faltar. Jobs de expurgo de dados transitórios em `infrastructure` (refresh tokens trocados, chaves de idempotência) ficam fora, como dados técnicos; o expurgo de anexos órfãos não é técnico (o anexo é dado de usuário) e passa por um caso de uso auditado, com ator sistema.
-  - **Transação:** o aspecto roda **dentro** da transação do caso de uso. Ela fica por fora pela ordem fixada em `AuditOrdering` (o `@EnableTransactionManagement` do `shared` substitui o do Boot). As entradas vão pela porta `AuditTrail`, implementada pelo `audit` com `JdbcClient`, na mesma transação: rollback não deixa entrada, e falha ao montar ou gravar a entrada desfaz a escrita. Fora de uma transação de escrita, o método falha com `IllegalStateException` antes de executar.
+  - **Transação:** o aspecto roda **dentro** da transação do caso de uso. Ela fica por fora pela ordem fixada em `AuditOrdering` (o `@EnableTransactionManagement` do `shared` substitui o do Boot). As entradas vão pela porta `AuditTrail`, implementada pelo `audit` com `JdbcClient`, na mesma transação: rollback não deixa entrada, e falha ao montar ou gravar a entrada desfaz a escrita. Fora de uma transação de escrita, o método falha com `IllegalStateException` antes de executar. *(Desde a M6 E18, exceção checked também desfaz a transação, `rollbackOn = ALL_EXCEPTIONS`: subseção "Rollback em toda exceção: comportamento atual" em "Atualizações por capturas".)*
   - **Descrever a mudança:** injete `AuditContext` e, dentro do método, descreva cada entidade:
     - `track(tipo, id) { retrato }` para uma que já existe: o retrato de agora é o "antes" e o do fim do método, o "depois"; sem mudança, não há entrada;
     - `created(tipo, id) { retrato }` para uma criada;
@@ -42,14 +42,38 @@ Texto literal do `CLAUDE.md` do repositório, linhas 520–539, no commit `a6c0f
 
 Texto das capturas de atualização publicadas pelo orquestrador dos lotes no repositório, integrado sem resumo nem reescrita. Vale sobre o texto literal acima quando trata do mesmo assunto. As notas do curador estão marcadas como tal.
 
-### Rollback em toda exceção (decisão da M6 E18, 2026-11-13; ainda não implementada)
+### Rollback em toda exceção (decisão da M6 E18, 2026-11-13; implementada em 2026-11-15)
 
-Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 4; ARCHITECTURE §5 item 6). Decisão registrada na ARCHITECTURE, **não é comportamento atual**: entra no código com a M6 E18. Complementa o marcador "**Transação**" do texto literal acima.
+*Nota do curador (2026-11-16):* **implementada na M6 E18.** O comportamento atual e o inventário estão na subseção "Rollback em toda exceção: comportamento atual (M6 E18, 2026-11-15)", abaixo, que substitui esta. O título dizia "ainda não implementada".
+
+Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (item 4; ARCHITECTURE §5 item 6). Quando esta subseção foi escrita, era decisão registrada na ARCHITECTURE, ainda fora do código (entrou com a M6 E18). Complementa o marcador "**Transação**" do texto literal acima.
 
 - O `@EnableTransactionManagement` do `shared` passa a usar `rollbackOn = RollbackOn.ALL_EXCEPTIONS`: exceção *checked* que escapa de um caso de uso passa a desfazer a escrita, e a escrita nunca fica confirmada sem trilha.
 - O `noRollbackFor` explícito de quem grava a recusa (`recordRejections`, como login com falha) continua valendo.
 - Alternativa descartada (ARCHITECTURE §5 item 6): `rollbackFor = Throwable` em cada caso de uso.
-- A E18 também prevê que o inventário dos caminhos com exceção *checked* dentro de `@Transactional` saia no handoff; ainda não existe.
+- A E18 também prevê que o inventário dos caminhos com exceção *checked* dentro de `@Transactional` saia no handoff; ainda não existe. *(Saiu no handoff da E18: subseção abaixo.)*
+
+### Rollback em toda exceção: comportamento atual (M6 E18, 2026-11-15)
+
+Origem: [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (item 3, parte de transações; fatos do handoff da E18, segundo a captura). Substitui a subseção "Rollback em toda exceção (decisão da M6 E18, 2026-11-13)", acima: agora é comportamento atual. Complementa o marcador "**Transação**" do texto literal. A etapa está na branch `roadmap/m6-operacao-fechamento`, ainda fora da `main` (ver [[ZenyHotelManager - Estado por marco]], "M6 E18"). As sondas de teste estão em [[ZenyHotelManager - Testes de integração]] ("M6 E18").
+
+- `@EnableTransactionManagement(..., rollbackOn = RollbackOn.ALL_EXCEPTIONS)` em `TransactionOrderingConfiguration` (`shared/infrastructure/audit/AuditAspect.kt`). Exceção *checked* que escapa de um caso de uso `@Transactional` desfaz a escrita, e a escrita não fica mais confirmada sem trilha (o `AuditAspect` só grava em sucesso ou em `DomainException`).
+- **`noRollbackFor` seguem valendo**, porque a regra explícita é mais específica que a de `Exception`: login e refresh com falha, aprovação recusada (`Authentication` ×2, `TokenRefreshService`, `Approvals`) e `files` (`FilesService.download`, `recordRejections`). Teste: "an explicit noRollbackFor still commits with ALL_EXCEPTIONS", com ataques (subclasse da listada, *checked* não listada, `Error`, ouvinte `REQUIRES_NEW`, transação unida).
+- **Efeito novo, provado em teste:** uma *checked* que um chamador **engole** dentro de uma transação unida (REQUIRED) faz o commit externo falhar com `UnexpectedRollbackException`. KDoc sugerido em `TransactionOrderingConfiguration` (ainda não escrito).
+- **`endofday`:** as três transições (`EndOfDayRunTransitions`) perderam o `rollbackFor = Throwable` local; o comportamento não mudou (o teste `a checked exception from the work undoes the complete like any other` segue verde).
+- **`TransactionTemplate` programático** desfaz em qualquer `Throwable`, independente do atributo (conferido no bytecode do `spring-tx` 7.0.10). Proxies de repositório do Spring Data têm fonte de atributos própria e não herdam o `rollbackOn`; é inofensivo, porque entram na transação do caso de uso, que decide.
+- **Inventário dos caminhos com exceção *checked* dentro de `@Transactional`** (critério da etapa): **nenhum caminho dependia do commit**. Onde havia escrita antes do ponto que lança, o commit antigo era o defeito.
+  - `printing`: `HtmlPdfRenderer.render` (`SAXException`/`IOException`) via `PrintingApiService.render`/`print`; os `pdf(...)` são `readOnly` e os `print(...)` renderizam antes da única escrita (`jobs.enqueue`): antes confirmava uma transação vazia, agora desfaz uma vazia.
+  - `shared`: `StreamController`/`RealtimeHub` fora de transação; `IdempotencyFilter` fora de proxy, grava por `TransactionTemplate`; as cifras capturam `GeneralSecurityException` na decifragem; `OfflineCommandService` já aplicava o handler num `TransactionTemplate`.
+  - `files`: o `presigned.url().toURI()` (`URISyntaxException`, `S3FileStorage.kt:183`) é alcançado por `FilesService.downloadUrl` (não por `download`, como dizia o plano), sem escrita antes. No `upload`, o reencode roda antes das escritas e um rollback agora também apaga o objeto do S3 (`removeOnRollback`), como no caminho de `RuntimeException`.
+  - `MessageDigest.getInstance("SHA-256")` (`PrintAgent`, `OfflineChanges`, `RefreshTokens`, `PushDevice`, `FileContentRules`, `IdempotencyFilter`): inalcançável.
+  - `fnrh`: `RestClient` converte `IOException` em `ResourceAccessException`; envio fora de transação.
+  - `notifications`: `FcmPushGateway` captura as exceções; **achado**: `SignedJWT.sign` declara `JOSEException`, não capturada em `requestAccessToken` (virou pendência para o `arquiteto`: [[ZenyHotelManager - Estado por marco]], "M6 E18"). O ouvinte de push não tem escrita própria.
+  - `endofday`, `reservations`, `guests` e jobs (`ProvisionalExpiry`, `InventoryHorizonJob`, `GuestDocumentRekeyJob`, `FileOrphanPurgeJob`): transação própria por item ou `TransactionTemplate`, sem transação externa. `iam`: `JwtEncodingException` é não-checada.
+  - Dos 83 `catch`/`runCatching` amplos de `src/main`, nenhum engole uma *checked* vinda de um proxy que compartilhe a transação (conferência por amostragem da revisora nos cinco `noRollbackFor` e nos `catch` dos casos de uso).
+- **Teste do critério:** `RollbackOnAllExceptionsTest` "a checked exception from an audited use case leaves neither the write nor the trail entry", vermelho antes (`expected:<0> but was:<1>`).
+
+*Nota do curador (conferência por `git` em 2026-11-16, só leitura, no `ed0f5ab`):* `shared/infrastructure/audit/AuditAspect.kt` tem `rollbackOn = RollbackOn.ALL_EXCEPTIONS` (linha 101). O inventário, os `noRollbackFor` e os testes não foram conferidos.
 
 ---
 
@@ -57,3 +81,4 @@ Origem: [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção 
 
 - 2026-10-22 — [[2026-10-22 - ZenyHotelManager - Auditoria - a4fe3210]] (capture_id: a4fe3210-4817-4e56-97e8-e9821d0b1ee1): texto literal do `CLAUDE.md` do repositório ZenyHotelManager (linhas 520–539, commit `a6c0f03`), integrado sem alteração; o tipo Knowledge em `20 Knowledge/` foi escolhido pelo usuário no processamento.
 - 2026-11-15 — [[2026-11-13 - ZenyHotelManager - atualização roadmap M6 manutenção transversal - 009e3130]] (capture_id: 009e3130-5bd9-4e8b-bd56-81c7fc440b81): `rollbackOn = RollbackOn.ALL_EXCEPTIONS` no `@EnableTransactionManagement` do `shared` (decisão para a M6 E18, item 4 da captura), em "Atualizações por capturas" (seção criada).
+- 2026-11-16 — [[2026-11-15 - ZenyHotelManager - atualização m6-operacao-fechamento E18 - a68d398b]] (capture_id: a68d398b-2037-4b20-af27-8039b163ae0e): `rollbackOn = ALL_EXCEPTIONS` como comportamento atual, `noRollbackFor`, efeito da checked engolida e inventário dos caminhos com exceção checked (item 3 da captura), na subseção nova "Rollback em toda exceção: comportamento atual", que substitui a da decisão de 2026-11-13 (mantida com marca); remissão no marcador "Transação"; nota do curador com a conferência por `git`.
