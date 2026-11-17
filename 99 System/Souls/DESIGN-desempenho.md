@@ -4,7 +4,8 @@
 > - a contagem de execuções do gate usada como "Hoje" (172 numa sessão, ~4,6 por tarefa) era subcontagem. Com o `medir_sessao.py`, a mesma sessão tem 227 execuções de `./gradlew build` (6,1 por tarefa), e quatro sessões anteriores ao ADR 0011 ficam entre 4,4 e 6,4 por tarefa. O alvo de ≤ 1,5 não muda;
 > - o script conta como gate só o comando que de fato o executa, não a menção em texto ou heredoc;
 > - o gate de integração roda também depois da onda única de correção de cada etapa, para o resíduo aparecer;
-> - a cópia de preservação `99 System/Souls/medir_sessao.py` foi para `agents/scripts/medir_sessao.py`.
+> - a cópia de preservação `99 System/Souls/medir_sessao.py` foi para `agents/scripts/medir_sessao.py`;
+> - a revisão final da branch acrescentou: sem a linha `gate do projeto`, o gate é o comando de build ou validação completa do `CLAUDE.md` (a suíte inteira mais o lint só na falta dele); nem a suíte inteira roda por tarefa, mesmo que o prompt implementer a peça; gate vermelho no teto de 5 rodadas ou sem dono deixa a etapa `#bloqueada`; plano antigo sem `## Ondas` roda como ondas de uma tarefa só; o `revisor-arquitetura` barra tarefa na mesma onda que a sua dependência ou fora de qualquer onda.
 
 Status: aprovado pelo usuário em 2026-11-17. Criado em 2026-11-17, a partir da medição de cerca de 20 sessões do orquestrador (4 a 17/11/2026, repositórios ZenyHotelManager e ZenyHotelManager-DesktopFront) e de uma pesquisa de práticas publicadas. Complementa o [design das souls](DESIGN.md) e o [design do arquiteto](DESIGN-arquiteto.md); o que lá vale continua valendo, salvo o que este documento muda.
 
