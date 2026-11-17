@@ -63,5 +63,31 @@ class TestRevisores(unittest.TestCase):
         self.assertIn("gate do projeto", c)
 
 
+class TestOrquestrador(unittest.TestCase):
+    def test_termos(self):
+        c = corpo("orquestrador")
+        for termo in ("gate de integração", "gate do projeto", "## Ondas", "verificação da tarefa",
+                      "entrevista de abertura do lote"):
+            with self.subTest(termo=termo):
+                self.assertIn(termo, c)
+
+    def test_lista_fechada_igual_ao_revisor(self):
+        c = corpo("orquestrador")
+        for item in LISTA_FECHADA:
+            with self.subTest(item=item):
+                self.assertIn(item, c)
+        self.assertNotIn("o núcleo que a etapa existe para entregar", c)
+
+    def test_gate(self):
+        c = corpo("orquestrador")
+        self.assertNotIn("rodo a suíte inteira uma vez", c)
+        self.assertIn("limites das tarefas", c)
+        self.assertRegex(c, r"(?i)sem (essa|a) linha.{0,80}suíte inteira")
+        self.assertRegex(c, r"(?i)ondas? de uma tarefa só.{0,200}até 3 tarefas")
+
+    def test_pergunta_nao_bloqueia(self):
+        self.assertRegex(corpo("orquestrador"), r"(?is)AskUserQuestion.{0,300}(nada mais anda|fim do lote)")
+
+
 if __name__ == "__main__":
     unittest.main()
