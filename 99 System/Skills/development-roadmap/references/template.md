@@ -69,10 +69,10 @@ Vale para toda execução deste roadmap. O planejamento e a execução de cada e
 |---|---|---|
 | Orquestrador | `orquestrador` (a sessão principal, iniciada com `claude --agent orquestrador`) | este protocolo; atualiza tags e handoffs; roda a verificação mecânica dos testes |
 | Planejador | `orquestrador` | `superpowers:writing-plans` |
-| Implementador | `desenvolvedor`, subagente por tarefa; tarefas independentes em ondas paralelas | `superpowers:subagent-driven-development`, prompt implementer |
-| Testador | `testador`, subagente nas tarefas `Risco: alto`, nas lacunas da revisão e uma vez por etapa | testes, sem tocar em código de produção |
-| Revisor de plano | `revisor-arquitetura`, subagente novo por etapa, modelo mais capaz | revisão do plano antes da execução |
-| Revisor de tarefa | `revisor-seguranca`, subagente novo por tarefa | revisão da `subagent-driven-development` |
+| Implementador | `desenvolvedor`, um subagente por fatia do plano, em série | `superpowers:subagent-driven-development`, prompt implementer |
+| Testador | `testador`, subagente uma vez por etapa, no fim, e nas lacunas da revisão | testes, sem tocar em código de produção |
+| Revisor de plano | `revisor-arquitetura`, subagente novo, modelo mais capaz, nas etapas que mexem em decisão de arquitetura | revisão do plano antes da execução |
+| Revisor de fatia | `revisor-seguranca`, subagente novo por fatia, nas etapas de duas ou mais fatias | revisão da `subagent-driven-development` |
 | Revisor final | `revisor-seguranca`, subagente novo, modelo mais capaz | revisão final da `subagent-driven-development` |
 | Captura no brain | `brain-escriba` | publica a captura de atualização em `00 Inbox/` |
 
@@ -89,8 +89,8 @@ Souls: este protocolo exige `orquestrador`, `desenvolvedor`, `testador`, `reviso
 1. **Escolha:** a primeira etapa, na ordem do documento, marcada `#pendente` e com todas as dependências `#concluida`. Etapas `#bloqueada` e as que dependem delas ficam para trás.
 2. **Conferência:** leia a seção da etapa, os handoffs das dependências e o código que eles citam. Se o código divergiu do que a etapa supõe, pare e relate.
 3. **Início:** troque a tag para `#em-andamento` (índice e título).
-4. **Plano:** use `superpowers:writing-plans`. A spec é a seção desta etapa mais o design citado em "Contexto confirmado"; as "Restrições e invariantes" entram como Global Constraints. Salve em `docs/superpowers/plans/AAAA-MM-DD-<slug>-eNN.md`. Antes de executar, o plano passa pela revisão de arquitetura do `orquestrador` (`revisor-arquitetura`); as regras (rodadas, veredito, seção no plano) vivem só nele. A execução já está definida (abaixo): não pergunte ao usuário o método, apenas siga.
-5. **Execução:** use `superpowers:subagent-driven-development` com esse plano, executado pelas souls conforme o ciclo por tarefa, a verificação mecânica dos testes e a revisão final da etapa definidos no `orquestrador` (as regras de encaixe vivem só nele). Não invoque `superpowers:finishing-a-development-branch` ao fim da etapa: ele roda uma vez, no fim do lote.
+4. **Plano:** use `superpowers:writing-plans`. A spec é a seção desta etapa mais o design citado em "Contexto confirmado"; as "Restrições e invariantes" entram como Global Constraints. Salve em `docs/superpowers/plans/AAAA-MM-DD-<slug>-eNN.md`. O plano é o contrato da etapa, em fatias, e passa pela revisão de arquitetura (`revisor-arquitetura`) quando a etapa a exige; as regras (forma do contrato, quando a revisão é obrigatória, rodadas, veredito, seção no plano) vivem só no `orquestrador`. A execução já está definida (abaixo): não pergunte ao usuário o método, apenas siga.
+5. **Execução:** use `superpowers:subagent-driven-development` com esse plano, executado pelas souls conforme o ciclo por fatia, a verificação mecânica dos testes e a revisão final da etapa definidos no `orquestrador` (as regras de encaixe vivem só nele). Não invoque `superpowers:finishing-a-development-branch` ao fim da etapa: ele roda uma vez, no fim do lote.
 6. **Fechamento:** publique a captura de atualização do brain, se o bloco "Second Brain" se aplica. Marque `#concluida` (índice e título) só com a revisão final limpa e cada critério de aceite verificado com evidência. Diante de impedimento real, marque `#bloqueada` e preencha "Bloqueios" com causa, evidência, impacto e ação de desbloqueio. Preencha "Evidências e handoff". Rulings do ledger que mudam contrato, escopo, segurança, dados ou algo caro de desfazer vão para "Decisões para o usuário".
 
 **Second Brain**
@@ -103,7 +103,7 @@ Vale se o `CLAUDE.md` tiver a seção "Conhecimento do projeto no Second Brain";
 
 **Paradas**
 
-Qualquer outra necessidade de intervenção é decidida pelo orquestrador pela opção recomendada, depois de avaliar prós e contras, com a ruling registrada; só decisão de arquitetura ou system design espera o usuário (regras em "Decisões" do `orquestrador`). O lote para ao concluir uma etapa com **Revisão humana: sim**, diante de decisão de arquitetura sem a qual nada mais anda, nas paradas que ficam com o usuário (push, deploy, publicação, instalação na máquina, apagar trabalho fora da etapa, segredo exposto), quando não resta etapa elegível e ao atingir o limite de etapas do prompt. Etapa que fica `#bloqueada` não para o lote: o orquestrador segue para a próxima elegível que não depende dela.
+Qualquer outra necessidade de intervenção é decidida pelo orquestrador pela opção recomendada, depois de avaliar prós e contras, com a ruling registrada; só decisão de arquitetura ou system design espera o usuário (regras em "Decisões" do `orquestrador`). O lote para ao concluir uma etapa com **Revisão humana: sim**, diante de decisão de arquitetura sem a qual nada mais anda, nas paradas que ficam com o usuário (push, deploy, publicação, instalação na máquina, apagar trabalho fora da etapa, segredo exposto), quando não resta etapa elegível e ao atingir o limite de etapas do prompt. Etapa que fica `#bloqueada` sem commit de código na branch não para o lote: o orquestrador segue para a próxima elegível que não depende dela. Etapa bloqueada com código na branch encerra o lote, e esse código não entra na principal (regras no fechamento do `orquestrador`).
 
 **Fim do lote**
 
@@ -118,7 +118,7 @@ Execute o roadmap <caminho/relativo/roadmap-slug.md> deste repositório seguindo
 Limite desta execução: no máximo 3 etapas concluídas.
 
 1. Confira a pré-condição do protocolo: esta sessão roda como orquestrador e as souls desenvolvedor, testador, revisor-seguranca e revisor-arquitetura estão disponíveis; se não, pare e diga como resolver. Leia CLAUDE.md (e AGENTS.md, se existir) e, no roadmap, o cabeçalho inteiro, o protocolo e o índice. Se o CLAUDE.md exigir o Second Brain, confira a linha BRAIN: carregado no contexto e leia o hub. Rode git status e git branch -a.
-2. Se alguma etapa estiver #em-andamento, retome-a a partir do ledger do superpowers e do handoff; não recomece tarefas já commitadas.
+2. Se alguma etapa estiver #em-andamento, retome-a a partir do ledger do superpowers e do handoff; não recomece trabalho já commitado.
 3. Crie ou retome o worktree/branch roadmap/<slug> com superpowers:using-git-worktrees. Não trabalhe na branch principal.
 4. Repita, uma etapa por vez: escolha a próxima etapa elegível, marque #em-andamento, planeje com superpowers:writing-plans (spec = seção da etapa + design citado), execute com superpowers:subagent-driven-development, feche a etapa e preencha o handoff conforme o protocolo.
 5. Pare nas paradas do protocolo ou ao atingir o limite.

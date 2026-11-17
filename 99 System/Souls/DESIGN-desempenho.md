@@ -1,5 +1,7 @@
 # Souls — desempenho da execução (ondas com fila de integração)
 
+> **Superado em 2026-11-17 por [`DESIGN-enxuto.md`](DESIGN-enxuto.md).** O ciclo de ondas, o testador por tarefa em `Risco: alto`, os campos `Estimativa:` e `Risco:`, a seção `## Ondas` e o gate por onda saíram. Continuam valendo, deste documento: a verificação da tarefa no lugar da suíte inteira, o gate do projeto rodado pelo orquestrador, a lista fechada de riscos, a entrevista de abertura do lote e a regra de espera com prazo. O corpo abaixo fica como registro.
+
 > **Nota (2026-11-17):** design aprovado pelo usuário em 2026-11-17; o corpo abaixo é o texto aprovado e não foi reescrito. A fonte da verdade são as souls em `agents/`. O que a implementação corrigiu ou acrescentou:
 > - a contagem de execuções do gate usada como "Hoje" (172 numa sessão, ~4,6 por tarefa) era subcontagem. Com o `medir_sessao.py`, a mesma sessão tem 227 execuções de `./gradlew build` (6,1 por tarefa), e quatro sessões anteriores ao ADR 0011 ficam entre 4,4 e 6,4 por tarefa. O alvo de ≤ 1,5 não muda;
 > - o script conta como gate só o comando que de fato o executa, não a menção em texto ou heredoc;

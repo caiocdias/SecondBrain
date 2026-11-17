@@ -67,6 +67,15 @@ Atualização (2026-11-17, depois da Medição 1): espera com prazo (**[usuário
 - Regra **[agente]**: desenvolvedor e testador põem `timeout` em todo comando de teste, build ou lint, esperam a notificação do próprio comando e não criam laço de espera nem processo solto; o orquestrador põe limite no gate, arma um temporizador e confere o subagente que passa 20 min sem entregar, sem tomar processo de build na máquina como sinal de vida.
 - Registro e números em `99 System/Souls/MEDICOES-desempenho.md`.
 
+Atualização (2026-11-17): ciclo enxuto (**[usuário]** = decisão do usuário, **[agente]** = escolha do agente):
+
+- Uma análise feita em outra sessão recomendou um modelo inspirado no desenho planejador → construtor → avaliador da Anthropic. O usuário pediu que fosse avaliada contra os transcritos e implementada se se sustentasse, e delegou ao agente a forma final **[usuário]**.
+- Aceito da recomendação **[agente]**: plano como contrato da etapa, sem código; revisão de arquitetura só quando a etapa mexe em ADR, contrato público, persistência, fronteira de módulo ou peça nova de runtime; testador e revisão final ao mesmo tempo no fim da etapa; até 2 rodadas de correção; gate do projeto 2 a 3 vezes por etapa. Saíram as ondas, o worktree por tarefa e o testador por tarefa.
+- Ajustado **[agente]**: um desenvolvedor por fatia (1 a 3 por etapa, com teto de 60 min de construção ou 12 arquivos de produção), e não por etapa inteira, porque nenhum subagente medido carregou um contexto desse tamanho; o ciclo continua sendo o `subagent-driven-development`, com fatias no lugar das tarefas; a dispensa da revisão de arquitetura é conferida pela `revisor-seguranca` contra o diff.
+- Rejeitado **[agente]**: tirar a revisão intermediária (a revisão por tarefa abriu rodada de correção em 46% de 122 tarefas; ficou a revisão por fatia nas etapas de duas ou mais) e tirar a conferência de cada despacho e o ledger.
+- Acrescentado depois de uma revisão independente da mudança **[agente]**: etapa `#bloqueada` que deixou código na branch encerra o lote, e o merge leva só até a última etapa concluída, porque esse código não passou pelo testador de etapa nem pela revisão final.
+- A estimativa é de cerca de 2h35 por etapa, contra 3h10 da Medição 1 sem o travamento. É projeção; a próxima rodada medida confere.
+
 ## Relações
 
 - [[Decidir pendências do usuário por entrevista com opção recomendada]]: a resposta sobre Souls veio de uma entrevista com opção recomendada.
@@ -79,3 +88,4 @@ Atualização (2026-11-17, depois da Medição 1): espera com prazo (**[usuário
 - 2026-10-29 — design em 99 System/Souls/DESIGN-arquiteto.md (entrevista com o usuário com opção recomendada): soul `arquiteto`, soul `revisor-arquitetura` e revisão de plano bloqueante antes da execução; marcação de decisões do usuário e escolhas do agente conforme aquele documento.
 - 2026-11-17 — sessão curadora; design em 99 System/Souls/DESIGN-desempenho.md, a partir da medição de cerca de 20 sessões do orquestrador (4 a 17/11/2026): ondas com fila de integração, verificação da tarefa, lista fechada de risco e entrevista de abertura do lote.
 - 2026-11-17 — sessão curadora, a pedido do usuário, sobre a Medição 1 (99 System/Souls/MEDICOES-desempenho.md; transcrito da sessão 17d41971 do ZenyHotelManager-DesktopFront): causa do travamento de 2h39 e regra de espera com prazo nas souls `desenvolvedor`, `testador` e `orquestrador`.
+- 2026-11-17 — sessão curadora; design em 99 System/Souls/DESIGN-enxuto.md. Origem: recomendação de outro agente, trazida pelo usuário, avaliada contra os transcritos das sessões do orquestrador de 4 a 17/11/2026 e contra três textos da Anthropic citados no design. O design marca o que foi decisão do usuário e o que foi escolha do agente.
